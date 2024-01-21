@@ -40,6 +40,8 @@
 // With FIXED RECEIVER configuration
 #define DESTINATION_ADDL 2
 
+
+
 // If you want use RSSI uncomment //#define ENABLE_RSSI true
 // and use relative configuration with RSSI enabled
 #define ENABLE_RSSI true
@@ -109,6 +111,13 @@ HardwareSerial MySerial(1);
 #define BUTTON_DOWN 4
 #define BUTTON_BACK 6
 
+#define LED_PIN  15
+
+bool button[] = {0, 0, 0, 0};
+bool stateButton[] = {0, 0, 0, 0};
+
+
+
 //LiquidCrystal_PCF8574 lcd(0x27);
 Adafruit_SSD1306 display = Adafruit_SSD1306(128, 64, &WIRE);
 
@@ -123,6 +132,8 @@ byte dotOff[] = { 0b00000, 0b01110, 0b10001, 0b10001,
 byte dotOn[] = { 0b00000, 0b01110, 0b11111, 0b11111,
                  0b11111, 0b01110, 0b00000, 0b00000
                };
+
+
 
 
 // ---------- esp8266 pins --------------
@@ -170,6 +181,7 @@ void printParameters(struct Configuration configuration);
 
 void setup() {
   int error;
+
   Serial.begin(9600);
   delay(500);
   initTempSensor();
@@ -217,6 +229,8 @@ void setup() {
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
   display.setCursor(0, 0);
+  testdrawline();
+  display.clearDisplay();
   display.print("display connected!");
   display.display();
   //esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
@@ -232,9 +246,14 @@ void setup() {
 
   analogReadResolution(12);
 
+  pinMode(LED_PIN, OUTPUT);
+
 }
 
 void loop() {
+  buttonTest();
+
+
   // If something available
   //lcd.setBacklight(0);
   if (e220ttl.available() > 1) {
@@ -273,12 +292,14 @@ void loop() {
 #endif
     }
   }
+
   if (millis() % 5000 < 30) {
     //display.clearDisplay();
     //display.setCursor(0,0);
-    if (millis() / 5000 % 8 == 1) {
+    if (millis() / 5000 % 7 == 1) {
       display.clearDisplay();
-      display.setCursor(0, 0);
+      drawHeadLine();
+      display.setCursor(0, 9);
     }
     //uint32_t Vbatt = 0;//powerinfo
     //for(int i = 0; i < 16; i++) {
@@ -296,22 +317,20 @@ void loop() {
     e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "\nTest " + String(millis() / 5000, DEC) +  \
                              "  " + String(result) + "C");
 
-    int analogValue = analogRead(GPIO_NUM_10);
+    //int analogValue = analogRead(GPIO_NUM_10);
 
     // print out the values you read:
-    Serial.printf("ADC analog value = %d\n", analogValue);
-    
-    Serial.println(realVBat());
+    //Serial.printf("ADC analog value = %d\n", analogValue);
 
-    
-    display.print(realVBat());
+    float tVBat = realVBat();
+    Serial.println(tVBat);
+    display.print(tVBat);
     display.println("V");
-
-
     display.display();
 
 
   }
+
   if (Serial.available()) {
 
     String input = Serial.readString();
@@ -355,6 +374,24 @@ float realVBat() {//only 100/100komh GPIO_NUM_10
     Vbatt = Vbatt + analogReadMilliVolts(GPIO_NUM_10); // ADC with correction
   }
   float Vbattf = Vbatt / 16 ;
-  float realVbat = (Vbattf * 3.59 + 480)/1000;
+  float realVbat = (Vbattf * 3.59 + 480) / 1000;
   return realVbat;
+}
+
+void buttonTest(){
+  button[0] = !digitalRead(BUTTON_UP);
+  button[1] = !digitalRead(BUTTON_OK);
+  button[2] = !digitalRead(BUTTON_DOWN);
+  button[3] = !digitalRead(BUTTON_BACK);
+
+
+  for (byte i = 0; i < 4; i++) {
+    if (stateButton[i] != button[i]) {
+      stateButton[i] = button[i];
+      if (button[i] == 1) {
+        Serial.printf("Botton %d\n" , i);
+        drawCircle(i);
+      }
+    }
+  }
 }
