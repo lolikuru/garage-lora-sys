@@ -216,7 +216,7 @@ void setup() {
   Serial.println("Hi, I'm going to send message!");
 
   // Send message
-  ResponseStatus rs = e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "Hello, world?");
+  ResponseStatus rs = e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "NEW CONNECTION");
   // Check If there is some problem of succesfully send
   Serial.println(rs.getResponseDescription());
   display.display();
@@ -233,6 +233,8 @@ void setup() {
   display.clearDisplay();
   display.print("display connected!");
   display.display();
+  delay(1000);
+  //symbolTest();
   //esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
   //setCpuFrequencyMhz(80);
 
@@ -247,6 +249,7 @@ void setup() {
   analogReadResolution(12);
 
   pinMode(LED_PIN, OUTPUT);
+  e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "1DHT1");
 
 }
 
@@ -269,67 +272,49 @@ void loop() {
     if (rc.status.code != 1) {
       Serial.println(rc.status.getResponseDescription());
     } else {
-      display.clearDisplay();
-      // Print the data received
-      Serial.println(rc.status.getResponseDescription());
-      Serial.println(rc.data);
-      //String MyStr = MyStr.remove(0, myindex);
-      display.setCursor(0, 0);
-      display.println(rc.status.getResponseDescription());
-      //display.setCursor(0, 3);
-      display.println(rc.data);
+      if (rc.data[0, 1] ==  2) {
+        rc.data.remove(0, 4);
+      }
+      //Serial.println(rc.data.substring(0,3));
+      if(rc.data.substring(0,3) == "DHT"){
+        display.clearDisplay();
+        display.setTextSize(2); 
+        // Print the data received
+        Serial.println(rc.status.getResponseDescription());
+        Serial.println(rc.data);
+        //drawHeadLine();
+        //String MyStr = MyStr.remove(0, myindex);
+        display.setCursor(0, 11);
+        //display.println(rc.status.getResponseDescription());
+        //display.setCursor(0, 3);
+        //display.println(rc.data);
+        display.print(rc.data.substring(3 , rc.data.indexOf("/")-1));
+        display.write(0xF7);display.print("c");
+        String Humid = rc.data.substring(rc.data.indexOf("/") + 1, rc.data.indexOf("/") + 3);
+        display.println(" " + Humid + "%");
+        printVBat(false);
+        
+      }
+      
 
       //rssi = rc.rssi;
 #ifdef ENABLE_RSSI
+      display.setTextSize(1);
       Serial.print("RSSI: "); Serial.println(rc.rssi, DEC);
-      //display.setCursor(0, 4);
-      display.print("RSSI: "); display.print(rc.rssi, DEC);
+      display.setCursor(0, 0);
+      display.write(0x1F); 
+      display.setCursor(8, 0);
+      display.print(rc.rssi, DEC);
       display.display();
       delay(100);
-      display.clearDisplay();
+      //display.clearDisplay();
+      //display.setCursor(0, 36);
       delay(100);
-      //e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23,  "OK!");
 #endif
     }
   }
 
-  if (millis() % 5000 < 30) {
-    //display.clearDisplay();
-    //display.setCursor(0,0);
-    if (millis() / 5000 % 7 == 1) {
-      display.clearDisplay();
-      drawHeadLine();
-      display.setCursor(0, 9);
-    }
-    //uint32_t Vbatt = 0;//powerinfo
-    //for(int i = 0; i < 16; i++) {
-    //Vbatt = Vbatt + analogReadMilliVolts(A0); // ADC with correction
-    //}
-    //float Vbattf = 2 * analogReadMilliVolts(A0) / 1000.0;
-    display.print("Test " + String(millis() / 5000, DEC));
-    float result = 0;
-    temp_sensor_read_celsius(&result);
-    display.print(" " + String(result) + "C ");
-
-
-
-
-    e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "\nTest " + String(millis() / 5000, DEC) +  \
-                             "  " + String(result) + "C");
-
-    //int analogValue = analogRead(GPIO_NUM_10);
-
-    // print out the values you read:
-    //Serial.printf("ADC analog value = %d\n", analogValue);
-
-    float tVBat = realVBat();
-    Serial.println(tVBat);
-    display.print(tVBat);
-    display.println("V");
-    display.display();
-
-
-  }
+  //test_send();
 
   if (Serial.available()) {
 
@@ -337,48 +322,13 @@ void loop() {
     ResponseStatus rs = e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, input);
     Serial.println(rs.getResponseDescription());
   }
-}
 
-
-void printParameters(struct Configuration configuration) {
-  Serial.println("----------------------------------------");
-
-  Serial.print(F("HEAD : "));  Serial.print(configuration.COMMAND, HEX); Serial.print(" "); Serial.print(configuration.STARTING_ADDRESS, HEX); Serial.print(" "); Serial.println(configuration.LENGHT, HEX);
-  Serial.println(F(" "));
-  Serial.print(F("AddH : "));  Serial.println(configuration.ADDH, HEX);
-  Serial.print(F("AddL : "));  Serial.println(configuration.ADDL, HEX);
-  Serial.println(F(" "));
-  Serial.print(F("Chan : "));  Serial.print(configuration.CHAN, DEC); Serial.print(" -> "); Serial.println(configuration.getChannelDescription());
-  Serial.println(F(" "));
-  Serial.print(F("SpeedParityBit     : "));  Serial.print(configuration.SPED.uartParity, BIN); Serial.print(" -> "); Serial.println(configuration.SPED.getUARTParityDescription());
-  Serial.print(F("SpeedUARTDatte     : "));  Serial.print(configuration.SPED.uartBaudRate, BIN); Serial.print(" -> "); Serial.println(configuration.SPED.getUARTBaudRateDescription());
-  Serial.print(F("SpeedAirDataRate   : "));  Serial.print(configuration.SPED.airDataRate, BIN); Serial.print(" -> "); Serial.println(configuration.SPED.getAirDataRateDescription());
-  Serial.println(F(" "));
-  Serial.print(F("OptionSubPacketSett: "));  Serial.print(configuration.OPTION.subPacketSetting, BIN); Serial.print(" -> "); Serial.println(configuration.OPTION.getSubPacketSetting());
-  Serial.print(F("OptionTranPower    : "));  Serial.print(configuration.OPTION.transmissionPower, BIN); Serial.print(" -> "); Serial.println(configuration.OPTION.getTransmissionPowerDescription());
-  Serial.print(F("OptionRSSIAmbientNo: "));  Serial.print(configuration.OPTION.RSSIAmbientNoise, BIN); Serial.print(" -> "); Serial.println(configuration.OPTION.getRSSIAmbientNoiseEnable());
-  Serial.println(F(" "));
-  Serial.print(F("TransModeWORPeriod : "));  Serial.print(configuration.TRANSMISSION_MODE.WORPeriod, BIN); Serial.print(" -> "); Serial.println(configuration.TRANSMISSION_MODE.getWORPeriodByParamsDescription());
-  Serial.print(F("TransModeEnableLBT : "));  Serial.print(configuration.TRANSMISSION_MODE.enableLBT, BIN); Serial.print(" -> "); Serial.println(configuration.TRANSMISSION_MODE.getLBTEnableByteDescription());
-  Serial.print(F("TransModeEnableRSSI: "));  Serial.print(configuration.TRANSMISSION_MODE.enableRSSI, BIN); Serial.print(" -> "); Serial.println(configuration.TRANSMISSION_MODE.getRSSIEnableByteDescription());
-  Serial.print(F("TransModeFixedTrans: "));  Serial.print(configuration.TRANSMISSION_MODE.fixedTransmission, BIN); Serial.print(" -> "); Serial.println(configuration.TRANSMISSION_MODE.getFixedTransmissionDescription());
-
-  Serial.println("----------------------------------------");
-
-}
-
-
-float realVBat() {//only 100/100komh GPIO_NUM_10
-  uint32_t Vbatt = 0;
-  for (int i = 0; i < 16; i++) {
-    Vbatt = Vbatt + analogReadMilliVolts(GPIO_NUM_10); // ADC with correction
+  if (millis() % 2000 < 30) {
+    printVBat(false);
   }
-  float Vbattf = Vbatt / 16 ;
-  float realVbat = (Vbattf * 3.59 + 480) / 1000;
-  return realVbat;
 }
 
-void buttonTest(){
+void buttonTest() {
   button[0] = !digitalRead(BUTTON_UP);
   button[1] = !digitalRead(BUTTON_OK);
   button[2] = !digitalRead(BUTTON_DOWN);
@@ -390,8 +340,19 @@ void buttonTest(){
       stateButton[i] = button[i];
       if (button[i] == 1) {
         Serial.printf("Botton %d\n" , i);
-        drawCircle(i);
-      }
+        drawCircles(i,1);
+        if ( i == 1 ) {
+          e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "1DHT1");
+        }
+        
+      }else drawCircles(i,0);
     }
   }
+}
+
+float getIncludeTemperature(){
+    float result = 0;
+    temp_sensor_read_celsius(&result);
+    display.print(" " + String(result) + "C ");
+    return result;
 }
