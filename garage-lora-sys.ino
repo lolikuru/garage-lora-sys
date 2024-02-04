@@ -260,6 +260,7 @@ void loop() {
   // If something available
   //lcd.setBacklight(0);
   if (e220ttl.available() > 1) {
+
     //lcd.setBacklight(255);
     //lcd.clear();
     // read the String message
@@ -275,41 +276,39 @@ void loop() {
       if (rc.data[0, 1] ==  2) {
         rc.data.remove(0, 4);
       }
+      display.clearDisplay();
       //Serial.println(rc.data.substring(0,3));
-      if(rc.data.substring(0,3) == "DHT"){
-        display.clearDisplay();
-        display.setTextSize(2); 
+      if (rc.data.substring(0, 3) == "DHT") {
+        ResiveSymbol(true);
+        display.setTextSize(2);
         // Print the data received
         Serial.println(rc.status.getResponseDescription());
         Serial.println(rc.data);
-        //drawHeadLine();
+        drawHeadLine();
         //String MyStr = MyStr.remove(0, myindex);
-        display.setCursor(0, 11);
+        display.setCursor(0, 24);//was 11
         //display.println(rc.status.getResponseDescription());
         //display.setCursor(0, 3);
         //display.println(rc.data);
-        display.print(rc.data.substring(3 , rc.data.indexOf("/")-1));
-        display.write(0xF7);display.print("c");
+        display.print(rc.data.substring(3 , rc.data.indexOf("/") - 1));
+        display.write(0xF7); display.print("c");
         String Humid = rc.data.substring(rc.data.indexOf("/") + 1, rc.data.indexOf("/") + 3);
         display.println(" " + Humid + "%");
-        printVBat(false);
-        
+        printVBat(true);
       }
-      
+
 
       //rssi = rc.rssi;
 #ifdef ENABLE_RSSI
       display.setTextSize(1);
       Serial.print("RSSI: "); Serial.println(rc.rssi, DEC);
       display.setCursor(0, 0);
-      display.write(0x1F); 
+      display.write(0x1F);
       display.setCursor(8, 0);
       display.print(rc.rssi, DEC);
       display.display();
-      delay(100);
       //display.clearDisplay();
       //display.setCursor(0, 36);
-      delay(100);
 #endif
     }
   }
@@ -324,7 +323,8 @@ void loop() {
   }
 
   if (millis() % 2000 < 30) {
-    printVBat(false);
+    printVBat(true);
+    ResiveSymbol(false);
   }
 }
 
@@ -340,19 +340,22 @@ void buttonTest() {
       stateButton[i] = button[i];
       if (button[i] == 1) {
         Serial.printf("Botton %d\n" , i);
-        drawCircles(i,1);
+        drawCircles(i, 1);
         if ( i == 1 ) {
           e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "1DHT1");
         }
-        
-      }else drawCircles(i,0);
+        if ( i == 3 ) {
+          e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "1PERIOD1");
+        }
+
+      } else drawCircles(i, 0);
     }
   }
 }
 
-float getIncludeTemperature(){
-    float result = 0;
-    temp_sensor_read_celsius(&result);
-    display.print(" " + String(result) + "C ");
-    return result;
+float getIncludeTemperature() {
+  float result = 0;
+  temp_sensor_read_celsius(&result);
+  display.print(" " + String(result) + "C ");
+  return result;
 }

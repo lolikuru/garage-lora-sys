@@ -9,19 +9,22 @@ float realVBat() {//only 100/100komh GPIO_NUM_10
 }
 
 void printVBat(bool procent){
+      int x = 100;
+      int y = 0;
       display.setTextSize(1);
-      display.setCursor(60, 0);
+      display.setCursor(x, y);
       display.setTextColor(SSD1306_BLACK);
-      for (byte t=0; t<5; t++) display.write(0xDA);
-      display.setCursor(60, 0);
+      for (byte t=0; t<4; t++) display.write(0xDA);
+      display.setCursor(x, y);
       display.setTextColor(SSD1306_WHITE);
       if (procent == false){
         display.print(realVBat());
-        display.print("V");
+        //display.print("V");
       } else {
-          int mP = map(realVBat(), 3.20, 4.18, 0, 100);
+          int mP = map(realVBat()*100, 320, 418, 0, 100);
           display.print(mP);
-          display.print("V");
+          display.print("%");
       }
+      drawBatImage(x-6,y);
       display.display();
 }
