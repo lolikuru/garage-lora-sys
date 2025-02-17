@@ -164,10 +164,10 @@ Config config;                         // <- global configuration object
 
 
 // Определяем переменные wifi
-String _ssid     = "Saya5G"; // Для хранения SSID
-String _password = "markiz18"; // Для хранения пароля сети
+String _ssid     = ""; // Для хранения SSID
+String _password = ""; // Для хранения пароля сети
 String _ssidAP = "ESP32LogServer";   // SSID AP точки доступа
-String _passwordAP = "6944745365"; // пароль точки доступа
+String _passwordAP = "12345678"; // пароль точки доступа
 
 // Create AsyncWebServer object on port 80
 static AsyncWebServer server(80);
