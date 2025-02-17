@@ -1,3 +1,4 @@
+
 /*
    EBYTE LoRa E220
    Send a string message to a fixed point ADDH ADDL CHAN
@@ -30,8 +31,12 @@
 
 */
 
+//ESP32 2.0.9
+
 #define uS_TO_S_FACTOR 1000000ULL  /* Conversion factor for micro seconds to seconds */
 #define TIME_TO_SLEEP  30        /* Time ESP32 will go to sleep (in seconds) */
+
+#define AUX_PIN 11
 
 #define BUTTON_PIN_BITMASK 0x800 //2^11 in 16 bit
 
@@ -39,10 +44,12 @@
 // With FIXED SENDER configuration
 // #define DESTINATION_ADDL 3
 
+#include "esp_sleep.h"
+#include "driver/gpio.h"
+#include <esp_clk.h>
+
 // With FIXED RECEIVER configuration
 #define DESTINATION_ADDL 2
-
-
 
 // If you want use RSSI uncomment //#define ENABLE_RSSI true
 // and use relative configuration with RSSI enabled
@@ -53,14 +60,26 @@
 #include <Arduino.h>
 #include <Wire.h>
 
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <U8g2lib.h>
+
+#include <ArduinoJson.h>
+#include "FS.h"
+#include <LittleFS.h>
+
+#include <WiFi.h>
+#include <ESPAsyncWebServer.h>
+
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 
 #include <HardwareSerial.h>
 
 #include "driver/temp_sensor.h"
 
-#include "time.h"
+#include <ESP32Time.h>
+
+//#include <base64.h>
+#include <Base64.h>
 
 void initTempSensor() {
   temp_sensor_config_t temp_sensor = TSENS_CONFIG_DEFAULT();
@@ -89,20 +108,6 @@ void print_wakeup_reason() {
   }
 }
 
-//void setup() {
-//  Serial.begin(115200);
-//  initTempSensor();
-//}
-//
-//void loop() {
-//  Serial.print("Temperature: ");
-//  float result = 0;
-//  temp_sensor_read_celsius(&result);
-//  Serial.print(result);
-//  Serial.println(" °C");
-//  delay(5000);
-//}
-
 HardwareSerial MySerial(1);
 
 #define WIRE Wire
@@ -114,23 +119,93 @@ HardwareSerial MySerial(1);
 
 #define LED_PIN  15
 
+//#define FORMAT_SPIFFS_IF_FAILED true
+#define FORMAT_LITTLEFS_IF_FAILED true
+
 bool button[] = {0, 0, 0, 0};
 bool stateButton[] = {0, 0, 0, 0};
 
 int lastRssi = 0;
 
-int menu_page = 0;
-int menu_string = 0;
+bool print_logf_status = true;
+bool led_msg = true;
+bool send_dht = false;
+
+uint8_t lora_link = 3;
+uint16_t lora_symb[4] = {0xe21a, 0xe219, 0xe218, 0xe217};
+
+volatile bool interruptExecuted = false;
+
+
+String time_substring;
+String old_time_substring;
+
+float host_temp = 0;
+float host_humid = 0;
+
+uint8_t current_selection = 0;
+
+uint8_t off_display_sec = 30;
+
+uint8_t relay[8] {B00000000};
 
 RTC_DATA_ATTR int bootCount = 0;
 
+//json test
+struct Config {
+  int id;
+  bool wifi_boot;
+  char hostname[64];
+  int port;
+};
+
+const char* filename = "/config.txt";  // <- SD library uses 8.3 filenames
+Config config;                         // <- global configuration object
+
+
+// Определяем переменные wifi
+String _ssid     = "Saya5G"; // Для хранения SSID
+String _password = "markiz18"; // Для хранения пароля сети
+String _ssidAP = "ESP32LogServer";   // SSID AP точки доступа
+String _passwordAP = "6944745365"; // пароль точки доступа
+
+// Create AsyncWebServer object on port 80
+static AsyncWebServer server(80);
+
+//AsyncWebServer server(80, LittleFS, "myServer");
+
+unsigned int time_zone = 4;
+
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 3600*time_zone, 60000);
+
+ESP32Time rtc(3600*time_zone);
+
+// Log file configuration
+const char* LOG_FILE_PATH = "/log.txt";
+
+bool Wifi_boot = false;
+bool WIFI_AP_on = false;
+
+unsigned long epochTime;
+
+int old_rssi = 0;
+
+//struct tm *ptm;
 
 
 //LiquidCrystal_PCF8574 lcd(0x27);
-Adafruit_SSD1306 display = Adafruit_SSD1306(128, 64, &WIRE);
+
+//U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
+//U8G2_SSD1306_128X64_ALT0_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);   // same as the NONAME variant, but may solve the "every 2nd line skipped" problem
+//U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/ 11, /* reset=*/ 8);
+U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE);   // All Boards without Reset of the Display
+//U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ 16, /* data=*/ 17, /* reset=*/ U8X8_PIN_NONE);   // ESP32 Thing, pure SW emulated I2C
+//U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 16, /* data=*/ 17);   // ESP32 Thing, HW I2C with pin remapping
+
+//Adafruit_SSD1306 display = Adafruit_SSD1306(128, 64, &WIRE);
 
 int rssi;
-
 
 // ---------- esp8266 pins --------------
 //LoRa_E220 e220ttl(RX, TX, AUX, M0, M1);  // Arduino RX <-- e220 TX, Arduino TX --> e220 RX
@@ -178,14 +253,21 @@ void printParameters(struct Configuration configuration);
 void setup() {
   int error;
 
-  Serial.begin(9600);
+  Serial.begin(115200);
   delay(500);
+
   initTempSensor();
+  Serial.println("Start 1 TempSensor");
 
   // Startup all pins and UART
   e220ttl.begin();
+  Serial.println("Start 2 LoRa module");
 
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Address 0x3C for 128x32
+
+  u8g2.begin(/* menu_select_pin= */ 2, /* menu_next_pin= */ 4, /* menu_prev_pin= */ 1, /* menu_home_pin= */ 6);
+  u8g2.enableUTF8Print();
+  Serial.println("Start 3-SSD1306 Display and botton module");
+
 
   if (bootCount != 1) {
     ResponseStructContainer c;
@@ -197,24 +279,23 @@ void setup() {
 
     printParameters(configuration);
     c.close();
-    
-    display.display();
 
+    //display.display();
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_ncenB08_tr);
 
-    // Clear the buffer.
-    display.clearDisplay();
-    display.display();
+    if (!LittleFS.begin(FORMAT_LITTLEFS_IF_FAILED)) {
+      Serial.println("LittleFS Mount Failed");
+      return;
+    } else {
+      u8g2.drawStr(0, 32, "LittleFS Mnted");
+      listDir(LittleFS, "/", 0);
+    }
 
-    display.setTextSize(1);
-    display.setTextColor(SSD1306_WHITE);
-    display.setCursor(0, 8);
-    testdrawline();
-    display.clearDisplay();
-    display.print("display connected!!!");
-    ++bootCount;
-    display.setCursor(0, 16);
-    display.print("Boot number: " + String(bootCount));
-    display.display();
+    bootCount++;
+    u8g2.setCursor(0, 16);
+    u8g2.print(" Boot number: " + String(bootCount));
+    u8g2.sendBuffer();
     delay(1000);
   }
   //symbolTest();
@@ -233,20 +314,39 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
   //e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "1DHT1");
 
+  //WIFIinit();
+  //Serial.println("Start 2-WebServer");
+
+  // Should load default config if run for the first time
+  //deleteFile(LittleFS, filename);
+  e220ttl.setMode(MODE_0_NORMAL);
+
+  epochTime=millis()/1000;
+  if(Wifi_boot){
+    WIFIinit();
+  }
+
 }
 
 void loop() {
-  buttonsActive();
 
-  // If something available
-  //lcd.setBacklight(0);
-  switch (menu_page){
-    case 0:
-      main_view();
-      break;
-    case 1: 
-      menu(menu_string);
-      break;
+  
+  if(interruptExecuted) {
+    Serial.println("WakeUp Callback, AUX pin go LOW and start receive message!");
+    Serial.flush();
+    //attachInterrupt(digitalPinToInterrupt(AUX_PIN), wakeUp, FALLING);
+    interruptExecuted = false;
+    e220ttl.setMode(MODE_0_NORMAL);
+    u8g2.setPowerSave(0);
+  }
+  
+  buttonsActive();
+  main_view();
+
+  if (send_dht) {
+    if (millis() % 3000 < 200) {
+      testDhtMessage();
+    }
   }
 
   if (Serial.available()) {
@@ -275,30 +375,21 @@ void buttonsActive() {
       stateButton[i] = button[i];
       if (button[i] == 1) {
         Serial.printf("Botton %d\n" , i);
-        drawCircles(i, 1);
         if ( i == 0 ) {
-          //sendLoraCommand("PERIOD");
-          if (menu_page==1&&menu_string>0){
-            menu_string--;
-            }
         }
-        
-        if ( i == 1 ) {
+        else if ( i == 1 ) {
           //sendLoraCommand("DHT");
-          menu_page = 1;// 1 -main
+          u8g2.setPowerSave(0);
+          main_menu();
+        }
+        else if ( i == 2 ) {
+        }
+        //        }
+        else if ( i == 3 ) {
+          power_menu();
         }
 
-        if ( i == 2 ) {
-          //sendLoraCommand("TIME");
-          if (menu_page==1&&menu_string<=3){
-            menu_string++;
-            }
-        }
-        if ( i == 3 ) {
-          menu_page = 0;
-        }
-
-      } else drawCircles(i, 0);
+      } //else drawCircles(i, 0);
     }
   }
 }
@@ -306,7 +397,7 @@ void buttonsActive() {
 float getIncludeTemperature() {
   float result = 0;
   temp_sensor_read_celsius(&result);
-  display.print(" " + String(result) + "C ");
+  u8g2.print(" " + String(result) + "C ");
   return result;
 }
 
