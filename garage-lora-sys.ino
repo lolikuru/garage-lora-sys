@@ -31,7 +31,9 @@
 */
 
 #define uS_TO_S_FACTOR 1000000ULL  /* Conversion factor for micro seconds to seconds */
-#define TIME_TO_SLEEP  5        /* Time ESP32 will go to sleep (in seconds) */
+#define TIME_TO_SLEEP  30        /* Time ESP32 will go to sleep (in seconds) */
+
+#define BUTTON_PIN_BITMASK 0x800 //2^11 in 16 bit
 
 
 // With FIXED SENDER configuration
@@ -58,15 +60,14 @@
 
 #include "driver/temp_sensor.h"
 
+#include "time.h"
+
 void initTempSensor() {
   temp_sensor_config_t temp_sensor = TSENS_CONFIG_DEFAULT();
   temp_sensor.dac_offset = TSENS_DAC_L2;  // TSENS_DAC_L2 is default; L4(-40°C ~ 20°C), L2(-10°C ~ 80°C), L1(20°C ~ 100°C), L0(50°C ~ 125°C)
   temp_sensor_set_config(temp_sensor);
   temp_sensor_start();
 }
-
-
-RTC_DATA_ATTR int bootCount = 0;
 
 /*
   Method to print the reason by which ESP32
@@ -116,24 +117,19 @@ HardwareSerial MySerial(1);
 bool button[] = {0, 0, 0, 0};
 bool stateButton[] = {0, 0, 0, 0};
 
+int lastRssi = 0;
+
+int menu_page = 0;
+int menu_string = 0;
+
+RTC_DATA_ATTR int bootCount = 0;
+
 
 
 //LiquidCrystal_PCF8574 lcd(0x27);
 Adafruit_SSD1306 display = Adafruit_SSD1306(128, 64, &WIRE);
 
 int rssi;
-
-
-// 2 custom characters
-
-byte dotOff[] = { 0b00000, 0b01110, 0b10001, 0b10001,
-                  0b10001, 0b01110, 0b00000, 0b00000
-                };
-byte dotOn[] = { 0b00000, 0b01110, 0b11111, 0b11111,
-                 0b11111, 0b01110, 0b00000, 0b00000
-               };
-
-
 
 
 // ---------- esp8266 pins --------------
@@ -189,53 +185,39 @@ void setup() {
   // Startup all pins and UART
   e220ttl.begin();
 
-  //Wire.begin();
-  //Wire.beginTransmission(0x27);
-  //error = Wire.endTransmission();
-  //if (error == 0) {
-  //Serial.println(": LCD found.");
-  //lcd.begin(20, 4);  // initialize the lcd
-  //lcd.createChar(1, dotOff);
-  //lcd.createChar(2, dotOn);
-  //} else {
-  //  Serial.println(": LCD not found.");
-  //}  // if
-
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Address 0x3C for 128x32
 
-  ResponseStructContainer c;
-  c = e220ttl.getConfiguration();
-  // It's important get configuration pointer before all other operation
-  Configuration configuration = *(Configuration*) c.data;
-  Serial.println(c.status.getResponseDescription());
-  Serial.println(c.status.code);
+  if (bootCount != 1) {
+    ResponseStructContainer c;
+    c = e220ttl.getConfiguration();
+    // It's important get configuration pointer before all other operation
+    Configuration configuration = *(Configuration*) c.data;
+    Serial.println(c.status.getResponseDescription());
+    Serial.println(c.status.code);
 
-  printParameters(configuration);
-  c.close();
-
-  Serial.println("Hi, I'm going to send message!");
-
-  // Send message
-  ResponseStatus rs = e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "NEW CONNECTION");
-  // Check If there is some problem of succesfully send
-  Serial.println(rs.getResponseDescription());
-  display.display();
+    printParameters(configuration);
+    c.close();
+    
+    display.display();
 
 
-  // Clear the buffer.
-  display.clearDisplay();
-  display.display();
+    // Clear the buffer.
+    display.clearDisplay();
+    display.display();
 
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0, 0);
-  testdrawline();
-  display.clearDisplay();
-  display.print("display connected!");
-  display.display();
-  delay(1000);
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, 8);
+    testdrawline();
+    display.clearDisplay();
+    display.print("display connected!!!");
+    ++bootCount;
+    display.setCursor(0, 16);
+    display.print("Boot number: " + String(bootCount));
+    display.display();
+    delay(1000);
+  }
   //symbolTest();
-  //esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
   //setCpuFrequencyMhz(80);
 
   //bottons
@@ -249,71 +231,23 @@ void setup() {
   analogReadResolution(12);
 
   pinMode(LED_PIN, OUTPUT);
-  e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "1DHT1");
+  //e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "1DHT1");
 
 }
 
 void loop() {
-  buttonTest();
-
+  buttonsActive();
 
   // If something available
   //lcd.setBacklight(0);
-  if (e220ttl.available() > 1) {
-
-    //lcd.setBacklight(255);
-    //lcd.clear();
-    // read the String message
-#ifdef ENABLE_RSSI
-    ResponseContainer rc = e220ttl.receiveMessageRSSI();
-#else
-    ResponseContainer rc = e220ttl.receiveMessage();
-#endif
-    // Is something goes wrong print error
-    if (rc.status.code != 1) {
-      Serial.println(rc.status.getResponseDescription());
-    } else {
-      if (rc.data[0, 1] ==  2) {
-        rc.data.remove(0, 4);
-      }
-      display.clearDisplay();
-      //Serial.println(rc.data.substring(0,3));
-      if (rc.data.substring(0, 3) == "DHT") {
-        ResiveSymbol(true);
-        display.setTextSize(2);
-        // Print the data received
-        Serial.println(rc.status.getResponseDescription());
-        Serial.println(rc.data);
-        drawHeadLine();
-        //String MyStr = MyStr.remove(0, myindex);
-        display.setCursor(0, 24);//was 11
-        //display.println(rc.status.getResponseDescription());
-        //display.setCursor(0, 3);
-        //display.println(rc.data);
-        display.print(rc.data.substring(3 , rc.data.indexOf("/") - 1));
-        display.write(0xF7); display.print("c");
-        String Humid = rc.data.substring(rc.data.indexOf("/") + 1, rc.data.indexOf("/") + 3);
-        display.println(" " + Humid + "%");
-        printVBat(true);
-      }
-
-
-      //rssi = rc.rssi;
-#ifdef ENABLE_RSSI
-      display.setTextSize(1);
-      Serial.print("RSSI: "); Serial.println(rc.rssi, DEC);
-      display.setCursor(0, 0);
-      display.write(0x1F);
-      display.setCursor(8, 0);
-      display.print(rc.rssi, DEC);
-      display.display();
-      //display.clearDisplay();
-      //display.setCursor(0, 36);
-#endif
-    }
+  switch (menu_page){
+    case 0:
+      main_view();
+      break;
+    case 1: 
+      menu(menu_string);
+      break;
   }
-
-  //test_send();
 
   if (Serial.available()) {
 
@@ -322,13 +256,14 @@ void loop() {
     Serial.println(rs.getResponseDescription());
   }
 
-  if (millis() % 2000 < 30) {
-    printVBat(true);
-    ResiveSymbol(false);
-  }
+  //esp_sleep_enable_ext0_wakeup(GPIO_NUM_11, 1);
+  //esp_sleep_enable_ext1_wakeup(BUTTON_PIN_BITMASK,ESP_EXT1_WAKEUP_ANY_HIGH);
+  //esp_deep_sleep_start();
+  //esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  //
 }
 
-void buttonTest() {
+void buttonsActive() {
   button[0] = !digitalRead(BUTTON_UP);
   button[1] = !digitalRead(BUTTON_OK);
   button[2] = !digitalRead(BUTTON_DOWN);
@@ -341,11 +276,26 @@ void buttonTest() {
       if (button[i] == 1) {
         Serial.printf("Botton %d\n" , i);
         drawCircles(i, 1);
+        if ( i == 0 ) {
+          //sendLoraCommand("PERIOD");
+          if (menu_page==1&&menu_string>0){
+            menu_string--;
+            }
+        }
+        
         if ( i == 1 ) {
-          e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "1DHT1");
+          //sendLoraCommand("DHT");
+          menu_page = 1;// 1 -main
+        }
+
+        if ( i == 2 ) {
+          //sendLoraCommand("TIME");
+          if (menu_page==1&&menu_string<=3){
+            menu_string++;
+            }
         }
         if ( i == 3 ) {
-          e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "1PERIOD1");
+          menu_page = 0;
         }
 
       } else drawCircles(i, 0);
@@ -359,3 +309,13 @@ float getIncludeTemperature() {
   display.print(" " + String(result) + "C ");
   return result;
 }
+
+void sendLoraCommand(String cmd) {
+  Serial.println("Send " + cmd);
+  e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "1" + cmd + "1");
+}
+
+//void lightSleep() {
+//    esp_sleep_enable_timer_wakeup();
+//    esp_light_sleep_start();
+//}

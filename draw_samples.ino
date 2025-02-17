@@ -36,7 +36,7 @@ void drawBatImage(int x, int y) {
 
 void ResiveSymbol(bool color) {
   display.setTextSize(1);
-  display.setCursor(22, 0);
+  display.setCursor(28, 0);
   if (color) {
     display.write(0x19);
   } else {
