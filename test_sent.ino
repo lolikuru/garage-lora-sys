@@ -3,16 +3,16 @@ void test_send() {
     //display.clearDisplay();
     //display.setCursor(0,0);
     if (millis() / 5000 % 7 == 1) {
-      display.clearDisplay();
-      drawHeadLine();
-      display.setCursor(0, 9);
+      u8g2.clearDisplay();
+      //drawHeadLine();
+      u8g2.setCursor(0, 9);
     }
     //uint32_t Vbatt = 0;//powerinfo
     //for(int i = 0; i < 16; i++) {
     //Vbatt = Vbatt + analogReadMilliVolts(A0); // ADC with correction
     //}
     //float Vbattf = 2 * analogReadMilliVolts(A0) / 1000.0;
-    display.print("Test " + String(millis() / 5000, DEC));
+    u8g2.print("Test " + String(millis() / 5000, DEC));
 
 
 
@@ -28,9 +28,9 @@ void test_send() {
 
     float tVBat = realVBat();
     Serial.println(tVBat);
-    display.print(tVBat);
-    display.println("V");
-    display.display();
+    u8g2.print(tVBat);
+    u8g2.println("V");
+    u8g2.display();
   }
 }
 
@@ -61,16 +61,48 @@ void printParameters(struct Configuration configuration) {
 
 }
 
-void symbolTest(){
-  display.clearDisplay();
-  for(byte c=0; c<126; c++){
-      int y = (c*7/128)*8;
-      int x = 0 + c*7 - 16*y ;
-      
-      Serial.println(String(x) + ":" + String(y));
-      
-      display.drawChar( x ,y, c, SSD1306_WHITE, SSD1306_BLACK,1);
-      display.display();
-      delay(5);
+void symbolTest() {
+  u8g2.clearBuffer();
+  for (byte c = 0; c < 126; c++) {
+    int y = (c * 7 / 128) * 8;
+    int x = 0 + c * 7 - 16 * y ;
+
+    //Serial.println(String(x) + ":" + String(y));
+    u8g2.drawLine ( x , y, c, 0);
+    //display.drawChar( x ,y, c, SSD1306_WHITE, SSD1306_BLACK,1);
+    u8g2.sendBuffer();
+    delay(5);
   }
+}
+
+void set_lora_configuration(struct Configuration configuration) {
+  ResponseStatus rs = e220ttl.setConfiguration(configuration, WRITE_CFG_PWR_DWN_SAVE);
+  Serial.println(rs.getResponseDescription());
+  Serial.println(rs.code);
+
+  ResponseStructContainer c;
+  c = e220ttl.getConfiguration();
+  // It's important get configuration pointer before all other operation
+  configuration = *(Configuration*) c.data;
+  Serial.println(c.status.getResponseDescription());
+  Serial.println(c.status.code);
+
+  printParameters(configuration);
+  c.close();
+}
+
+void testDhtMessage() {
+  float result = 0;
+  temp_sensor_read_celsius(&result);
+  float Humidity = 0; // Получаем показания влажности
+  //ResponseStatus rs = e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, &message, sizeof(Message));
+  Serial.println("Send_testMesssage");
+  if(Wifi_boot){
+    //epochTime = timeClient.getEpochTime();
+    //tm *ptm = gmtime((time_t *)&epochTime);
+    e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "/TIME" + String(epochTime));
+  } else e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "/TIME" + String(millis()/1000));
+  delay(150);
+  e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "/DHT" + String(result) + "/0.00");
+  delay(150);
 }
