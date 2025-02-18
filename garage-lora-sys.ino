@@ -130,7 +130,7 @@ int lastRssi = 0;
 bool print_logf_status = true;
 bool led_msg = true;
 bool send_dht = false;
-bool allways_on_disp = true;
+bool allways_on_disp = false;
 
 unsigned long icon_timestamp = 0;
 unsigned long sleep_timestump = millis();
@@ -169,7 +169,7 @@ struct Info {
   float humid;
   //float power;
   int rssi;
-  byte xSwitch;
+  uint8_t relay[8] {B00000000};
   bool save = false;
 };
 
@@ -350,6 +350,7 @@ void loop() {
   }
   
   buttonsActive();
+  UpdateLoraInfoStruct();
   main_view();
 
   if (send_dht) {
@@ -357,6 +358,7 @@ void loop() {
       testDhtMessage();
     }
   }
+  
 
   if (Serial.available()) {
 
@@ -370,9 +372,12 @@ void loop() {
   //esp_deep_sleep_start();
   //esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
   //
-  if (millis() > sleep_timestump + 30*1000 && !allways_on_disp){
+  if (millis() > sleep_timestump + 60*1000 && !allways_on_disp){
     //sleep_timestump = millis();
-    u8g2.setPowerSave(1);
+    //setCpuFrequencyMhz(80);
+    //esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+    light_sleep(false);
+    //u8g2.setPowerSave(1);
   }
 
   
@@ -398,7 +403,9 @@ void buttonsActive() {
           //sendLoraCommand("DHT");
           u8g2.setPowerSave(0);
           sleep_timestump = millis();
+          setCpuFrequencyMhz(240);
           main_menu();
+          
         }
         else if ( i == 2 ) {
           sleep_timestump = millis();
@@ -409,6 +416,7 @@ void buttonsActive() {
           sleep_timestump = millis();
           u8g2.setPowerSave(0);
           power_menu();
+          setCpuFrequencyMhz(240);
         }
 
       } //else drawCircles(i, 0);

@@ -39,8 +39,9 @@ bool get_lora_main_info() {
 }
 
 void UpdateLoraInfoStruct() {
-  digitalWrite(LED_PIN, LOW);
+  
   if (e220ttl.available() > 1) {
+    if (led_msg)digitalWrite(LED_PIN, HIGH);
     //String old_time_substring;
     //u8g2.clearBuffer();
 #ifdef ENABLE_RSSI
@@ -90,8 +91,16 @@ void UpdateLoraInfoStruct() {
       } else {
         r_info.save = false;
       }
+      if (r_info.save) {
+        String DHT_substring = String(host_temp).substring(0, 4) + "ºC " + String(host_humid).substring(0, 4) + "%";
+        String log_str = rtc.getTime("%d/%b/%Y %H:%M:%S") + "|" + DHT_substring + "|" + lastRssi + "|" + String(realVBat()) + "\n";
+        Serial.println(log_str);
+        appendFile(LittleFS, "/log.txt", log_str.c_str());
+        r_info.save = false;
+      }
     }
   }
+  if(led_msg)digitalWrite(LED_PIN, LOW);
 }
 
 void wakeUp() {
