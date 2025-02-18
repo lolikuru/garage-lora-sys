@@ -130,6 +130,7 @@ int lastRssi = 0;
 bool print_logf_status = true;
 bool led_msg = true;
 bool send_dht = false;
+bool allways_on_disp = true;
 
 unsigned long icon_timestamp = 0;
 unsigned long sleep_timestump = millis();
@@ -369,7 +370,7 @@ void loop() {
   //esp_deep_sleep_start();
   //esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
   //
-  if (millis() > sleep_timestump + 30*1000){
+  if (millis() > sleep_timestump + 30*1000 && !allways_on_disp){
     //sleep_timestump = millis();
     u8g2.setPowerSave(1);
   }
