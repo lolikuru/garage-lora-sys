@@ -39,6 +39,7 @@ bool get_lora_main_info() {
 }
 
 void UpdateLoraInfoStruct() {
+  digitalWrite(LED_PIN, LOW);
   if (e220ttl.available() > 1) {
     //String old_time_substring;
     //u8g2.clearBuffer();
@@ -58,11 +59,12 @@ void UpdateLoraInfoStruct() {
       if (rc.data.substring(0, 1) == "I") {
         rc.data.remove(0, 1);
         Serial.println(rc.status.getResponseDescription());
+        if (led_msg) digitalWrite(LED_PIN, HIGH);
 
         time_substring = rc.data.substring(0, rc.data.indexOf("/"));
         r_info.msgtime = strtol(time_substring.c_str(), NULL, 10);
         rc.data.remove(0, rc.data.indexOf("/") + 1);
-        Serial.println(time_substring);
+        //Serial.println(time_substring);
 
         r_info.save = true;
 
@@ -83,7 +85,7 @@ void UpdateLoraInfoStruct() {
         //        Serial.println("left: " + rc.data);
         //        Serial.println("host_temp: " + String(host_temp));
         //        Serial.println("host_humid: " + String(host_humid));
-        Serial.printf("%u %2.1f %2.1f %i\n", r_info.msgtime, r_info.temp, r_info.humid, r_info.rssi);
+        //Serial.printf("%u %2.1f %2.1f %i\n", r_info.msgtime, r_info.temp, r_info.humid, r_info.rssi);
 
       } else {
         r_info.save = false;

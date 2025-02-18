@@ -46,11 +46,10 @@ void main_view() {
   if (lastRssi > 0) {
     Serial.println(lastRssi);
     lora_link = 0;
+    if (led_msg) digitalWrite(LED_PIN, HIGH);
     u8g2.setFont(u8g2_font_siji_t_6x10);
     if (r_info.save) {
       Serial.print("RSSI: "); Serial.println(lastRssi, DEC);
-
-      if (led_msg) digitalWrite(LED_PIN, HIGH);
     } else digitalWrite(LED_PIN, LOW);
     old_rssi = lastRssi;
     u8g2.drawGlyph(0, 12, lora_symb[lora_link]);
