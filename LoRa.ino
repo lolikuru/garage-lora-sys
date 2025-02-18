@@ -15,10 +15,6 @@ bool get_lora_main_info() {
       if (rc.data[0, 1] == 2) {
         rc.data.remove(0, 4);
       }
-      //старое значение времени прихода сообщения
-      //Serial.println(time_substring.toInt()-3600*time_zone);
-
-      //`Serial.println(rtc.getTime("%A, %B %d %Y %H:%M:%S"));
 
 
       if (rc.data.substring(0, 4) == "TIME") {//получаем время
@@ -42,7 +38,7 @@ bool get_lora_main_info() {
   }
 }
 
-bool GetLoraInfoBase64() {
+void UpdateLoraInfoStruct() {
   if (e220ttl.available() > 1) {
     //String old_time_substring;
     //u8g2.clearBuffer();
@@ -63,30 +59,37 @@ bool GetLoraInfoBase64() {
         rc.data.remove(0, 1);
         Serial.println(rc.status.getResponseDescription());
 
-        Serial.println("Encoded: " + rc.data);
-
         time_substring = rc.data.substring(0, rc.data.indexOf("/"));
+        r_info.msgtime = strtol(time_substring.c_str(), NULL, 10);
         rc.data.remove(0, rc.data.indexOf("/") + 1);
         Serial.println(time_substring);
 
-        host_temp = rc.data.substring(0, rc.data.indexOf("/")).toFloat();
+        r_info.save = true;
+
+        if(host_temp == rc.data.substring(0, rc.data.indexOf("/")).toFloat()) r_info.save = false;
+        else host_temp = rc.data.substring(0, rc.data.indexOf("/")).toFloat();
+        r_info.temp = host_temp;
         rc.data.remove(0, rc.data.indexOf("/") + 1);
 
-        host_humid = rc.data.substring(0, rc.data.indexOf("/")).toFloat();
+        if (host_humid == rc.data.substring(0, rc.data.indexOf("/")).toFloat()) r_info.save = false;
+        else host_humid = rc.data.substring(0, rc.data.indexOf("/")).toFloat();
+        r_info.humid = host_humid;
         rc.data.remove(0, rc.data.indexOf("/") + 1);
+
+        r_info.rssi = lastRssi;
 
         rtc.setTime(strtol(time_substring.c_str(), NULL, 10) - 3600 * time_zone);
 
-//        Serial.println("left: " + rc.data);
-//        Serial.println("host_temp: " + String(host_temp));
-//        Serial.println("host_humid: " + String(host_humid));
+        //        Serial.println("left: " + rc.data);
+        //        Serial.println("host_temp: " + String(host_temp));
+        //        Serial.println("host_humid: " + String(host_humid));
+        Serial.printf("%u %2.1f %2.1f %i\n", r_info.msgtime, r_info.temp, r_info.humid, r_info.rssi);
 
-        return true;
+      } else {
+        r_info.save = false;
       }
-
     }
   }
-  return false;
 }
 
 void wakeUp() {

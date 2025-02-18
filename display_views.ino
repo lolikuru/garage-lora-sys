@@ -12,10 +12,11 @@ void main_view() {
   //  unsigned long epochTime = timeClient.getEpochTime();
   //  struct tm *ptm = gmtime((time_t *)&epochTime);//time update
 
-  bool save = GetLoraInfoBase64();
+  UpdateLoraInfoStruct();
+  
   u8g2.clearBuffer();
   //bool save = get_lora_main_info();
-  printVBat(true);
+  printVBat(false);
   u8g2.setCursor(0, 24);
   u8g2.print(rtc.getTime("%d/%b/%Y %H:%M:%S"));
   u8g2.setFont(u8g2_font_10x20_tf );
@@ -33,19 +34,20 @@ void main_view() {
     u8g2.print("K");
   }
 
-  if (Wifi_boot) {
-    //epochTime = timeClient.getEpochTime();
-    //tm *ptm = gmtime((time_t *)&epochTime);//time update
-    u8g2.setCursor(38, 12);
-    u8g2.print(epochTime);
-    //u8g2.printf("%02d:%02d:%02d\n", ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
-  }
+//  if (Wifi_boot) {
+//    //epochTime = timeClient.getEpochTime();
+//    //tm *ptm = gmtime((time_t *)&epochTime);//time update
+//    u8g2.setCursor(38, 12);
+//    u8g2.print(epochTime);
+//    //u8g2.printf("%02d:%02d:%02d\n", ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
+//  }
 
 #ifdef ENABLE_RSSI
   if (lastRssi > 0) {
+    Serial.println(lastRssi);
     lora_link = 0;
     u8g2.setFont(u8g2_font_siji_t_6x10);
-    if (save) {
+    if (r_info.save) {
       Serial.print("RSSI: "); Serial.println(lastRssi, DEC);
 
       if (led_msg) digitalWrite(LED_PIN, HIGH);
@@ -65,17 +67,19 @@ void main_view() {
 #endif
   u8g2.setFont(u8g2_font_siji_t_6x10);
   u8g2.drawGlyph(0, 12, lora_symb[lora_link]);
-  //Serial.println(millis());
-  if (millis() % 5000 < 90) {
-    if ( lora_link < 4 ) lora_link++;
-    //Serial.println(lora_link);
+  if (millis() > icon_timestamp + 10000 ) { //update 1 time in 10 sec
+    icon_timestamp = millis();
+    if ( lora_link < 3 ) lora_link++;
   }
 
   u8g2.sendBuffer();
-  if (save) {
-    String log_str = rtc.getTime("%d/%b/%Y %H:%M:%S") + "|" + DHT_substring + "|" + lastRssi + "\n";
+  if (r_info.save) {
+    String log_str = rtc.getTime("%d/%b/%Y %H:%M:%S") + "|" + DHT_substring + "|" + lastRssi + "|" + String(realVBat()) + "\n";
+    Serial.println(log_str);
     appendFile(LittleFS, "/log.txt", log_str.c_str());
+    r_info.save = false;
   }
+  lastRssi = 0;
 }
 
 void main_menu() {

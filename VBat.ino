@@ -2,18 +2,16 @@ float realVBat() {//only 100/100komh GPIO_NUM_10
   uint32_t Vbatt = 0;
   for (int i = 0; i < 16; i++) {
     Vbatt = Vbatt + analogReadMilliVolts(GPIO_NUM_10); // ADC with correction
-    //Serial.println(analogReadMilliVolts(GPIO_NUM_10));
   }
-  //Serial.println(Vbatt);
   float Vbattf = Vbatt / 16 ;
-  float realVbat = (Vbattf * 3.59 + 480) / 1000;
+  //Serial.println(Vbattf);
+  float realVbat = (Vbattf * 3.18) / 1000;
   return realVbat;
 }
 
 void printVBat(bool procent) {
   u8g2.setFont(u8g2_font_siji_t_6x10);
-  u8g2.setCursor(84, 12);
-  u8g2.setCursor(100, 12);
+  u8g2.setCursor(96, 12);
   u8g2.setDrawColor(1);
   //for (byte t = 0; t < 4; t++) u8g2.print("\0xDA");
   //u8g2.setCursor(x, y);

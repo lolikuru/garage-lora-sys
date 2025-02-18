@@ -7,11 +7,6 @@ void test_send() {
       //drawHeadLine();
       u8g2.setCursor(0, 9);
     }
-    //uint32_t Vbatt = 0;//powerinfo
-    //for(int i = 0; i < 16; i++) {
-    //Vbatt = Vbatt + analogReadMilliVolts(A0); // ADC with correction
-    //}
-    //float Vbattf = 2 * analogReadMilliVolts(A0) / 1000.0;
     u8g2.print("Test " + String(millis() / 5000, DEC));
 
 

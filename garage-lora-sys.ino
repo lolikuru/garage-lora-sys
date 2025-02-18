@@ -131,6 +131,9 @@ bool print_logf_status = true;
 bool led_msg = true;
 bool send_dht = false;
 
+unsigned long icon_timestamp = 0;
+unsigned long sleep_timestump = millis();
+
 uint8_t lora_link = 3;
 uint16_t lora_symb[4] = {0xe21a, 0xe219, 0xe218, 0xe217};
 
@@ -158,6 +161,18 @@ struct Config {
   char hostname[64];
   int port;
 };
+
+struct Info {
+  unsigned long msgtime;
+  float temp;
+  float humid;
+  //float power;
+  int rssi;
+  byte xSwitch;
+  bool save = false;
+};
+
+struct Info r_info;
 
 const char* filename = "/config.txt";  // <- SD library uses 8.3 filenames
 Config config;                         // <- global configuration object
@@ -312,13 +327,6 @@ void setup() {
   analogReadResolution(12);
 
   pinMode(LED_PIN, OUTPUT);
-  //e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "1DHT1");
-
-  //WIFIinit();
-  //Serial.println("Start 2-WebServer");
-
-  // Should load default config if run for the first time
-  //deleteFile(LittleFS, filename);
   e220ttl.setMode(MODE_0_NORMAL);
 
   epochTime=millis()/1000;
@@ -361,6 +369,12 @@ void loop() {
   //esp_deep_sleep_start();
   //esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
   //
+  if (millis() > sleep_timestump + 30*1000){
+    //sleep_timestump = millis();
+    u8g2.setPowerSave(1);
+  }
+
+  
 }
 
 void buttonsActive() {
@@ -376,16 +390,23 @@ void buttonsActive() {
       if (button[i] == 1) {
         Serial.printf("Botton %d\n" , i);
         if ( i == 0 ) {
+          sleep_timestump = millis();
+          u8g2.setPowerSave(0);
         }
         else if ( i == 1 ) {
           //sendLoraCommand("DHT");
           u8g2.setPowerSave(0);
+          sleep_timestump = millis();
           main_menu();
         }
         else if ( i == 2 ) {
+          sleep_timestump = millis();
+          u8g2.setPowerSave(0);
         }
         //        }
         else if ( i == 3 ) {
+          sleep_timestump = millis();
+          u8g2.setPowerSave(0);
           power_menu();
         }
 
