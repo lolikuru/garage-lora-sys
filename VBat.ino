@@ -5,7 +5,7 @@ float realVBat() {//only 100/100komh GPIO_NUM_10
   }
   float Vbattf = Vbatt / 16 ;
   //Serial.println(Vbattf);
-  float realVbat = (Vbattf * 3.18) / 1000;
+  float realVbat = (Vbattf * 3.59 + 480) / 1000;
   return realVbat;
 }
 

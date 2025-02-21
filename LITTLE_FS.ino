@@ -225,23 +225,9 @@ void deleteFile2(fs::FS &fs, const char * path){
 //    }
 //}
 
-float get_log_size(fs::FS &fs){
-  File root = fs.open("/");
-  File file = root.openNextFile();
-  File f_file;
-  while(file){
-    String filename = file.name();
-    if(filename == "log.txt"){
-      f_file = file;
-      break;
-    }
-    file = root.openNextFile();
-  }
+float get_log_size(){
+  File f_file = LittleFS.open("/log.txt", "r");
   if (f_file){
-//    Serial.print("  FILE: ");
-//    Serial.print(f_file.name());
-//    Serial.print("\tSIZE: ");
-//    Serial.println(f_file.size());
     float f_size = f_file.size()/1024 + f_file.size()%1024*0.001;
     return f_size;
   } 
@@ -249,4 +235,23 @@ float get_log_size(fs::FS &fs){
       writeFile(LittleFS, "/log.txt", "log.txt autocreate\n");
       return 0;
   }
+}
+
+String getContentType(String filename) {
+  //if (HTTP.hasArg("download")) return "application/octet-stream";
+  //else 
+  if (filename.endsWith(".htm")) return "text/html";
+  else if (filename.endsWith(".html")) return "text/html";
+  else if (filename.endsWith(".json")) return "application/json";
+  else if (filename.endsWith(".css")) return "text/css";
+  else if (filename.endsWith(".js")) return "application/javascript";
+  else if (filename.endsWith(".png")) return "image/png";
+  else if (filename.endsWith(".gif")) return "image/gif";
+  else if (filename.endsWith(".jpg")) return "image/jpeg";
+  else if (filename.endsWith(".ico")) return "image/x-icon";
+  else if (filename.endsWith(".xml")) return "text/xml";
+  else if (filename.endsWith(".pdf")) return "application/x-pdf";
+  else if (filename.endsWith(".zip")) return "application/x-zip";
+  else if (filename.endsWith(".gz")) return "application/x-gzip";
+  return "text/plain";
 }

@@ -8,7 +8,12 @@ const char * onOff(bool input) {
 
 void main_view() {
 
+  //timeClient.update();
+  //  unsigned long epochTime = timeClient.getEpochTime();
+  //  struct tm *ptm = gmtime((time_t *)&epochTime);//time update
+
   u8g2.clearBuffer();
+  //bool save = get_lora_main_info();
   printVBat(false);
   u8g2.setCursor(0, 24);
   u8g2.print(rtc.getTime("%d/%b/%Y %H:%M:%S"));
@@ -23,7 +28,7 @@ void main_view() {
     u8g2.setFont(u8g2_font_6x12_t_symbols);
     u8g2.setCursor(32, 62);
     u8g2.print("log size:");
-    u8g2.print(get_log_size(LittleFS));
+    u8g2.print(get_log_size());
     u8g2.print("K");
   }
 
@@ -162,12 +167,12 @@ void main_view() {
     }
 
     if ( current_selection == 2 ) {
-      deleteFile(LittleFS, filename);
+      deleteFile(LittleFS, config_filename);
       current_selection == 0;
     }
 
     else if ( current_selection == 3 ) {
-      test_json();
+      test_json(config_filename);
       current_selection == 0;
     }
 

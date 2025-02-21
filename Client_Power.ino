@@ -7,7 +7,7 @@ void deep_sleep() {
   e220ttl.setMode(MODE_0_NORMAL);
   u8g2.setPowerSave(0);
 }
-
+  
 void light_sleep(bool on_display) {
   uint64_t wakeup_pin_mask = (1ULL << GPIO_NUM_2) | (1ULL << GPIO_NUM_11);
   esp_sleep_enable_ext1_wakeup(wakeup_pin_mask, ESP_EXT1_WAKEUP_ALL_LOW);

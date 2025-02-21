@@ -62,7 +62,7 @@
 
 #include <U8g2lib.h>
 
-#include <ArduinoJson.h>
+#include <ArduinoJson.h>        //Установить из менеджера библиотек.
 #include "FS.h"
 #include <LittleFS.h>
 
@@ -86,26 +86,6 @@ void initTempSensor() {
   temp_sensor.dac_offset = TSENS_DAC_L2;  // TSENS_DAC_L2 is default; L4(-40°C ~ 20°C), L2(-10°C ~ 80°C), L1(20°C ~ 100°C), L0(50°C ~ 125°C)
   temp_sensor_set_config(temp_sensor);
   temp_sensor_start();
-}
-
-/*
-  Method to print the reason by which ESP32
-  has been awaken from sleep
-*/
-void print_wakeup_reason() {
-  esp_sleep_wakeup_cause_t wakeup_reason;
-
-  wakeup_reason = esp_sleep_get_wakeup_cause();
-
-  switch (wakeup_reason)
-  {
-    case ESP_SLEEP_WAKEUP_EXT0 : Serial.println("Wakeup caused by external signal using RTC_IO"); break;
-    case ESP_SLEEP_WAKEUP_EXT1 : Serial.println("Wakeup caused by external signal using RTC_CNTL"); break;
-    case ESP_SLEEP_WAKEUP_TIMER : Serial.println("Wakeup caused by timer"); break;
-    case ESP_SLEEP_WAKEUP_TOUCHPAD : Serial.println("Wakeup caused by touchpad"); break;
-    case ESP_SLEEP_WAKEUP_ULP : Serial.println("Wakeup caused by ULP program"); break;
-    default : Serial.printf("Wakeup was not caused by deep sleep: %d\n", wakeup_reason); break;
-  }
 }
 
 HardwareSerial MySerial(1);
@@ -175,16 +155,21 @@ struct Info {
 };
 
 struct Info r_info;
+String jsonConfig = "{}";
 
-const char* filename = "/config.txt";  // <- SD library uses 8.3 filenames
+const char* config_filename = "/config.json";  // <- SD library uses 8.3 filenames
 Config config;                         // <- global configuration object
 
 
 // Определяем переменные wifi
+String SSDP_Name = "Update"; // Имя SSDP
 String _ssid     = ""; // Для хранения SSID
 String _password = ""; // Для хранения пароля сети
 String _ssidAP = "ESP32LogServer";   // SSID AP точки доступа
 String _passwordAP = "12345678"; // пароль точки доступа
+
+String Pinout_name[8] = {"Load1", "Load2", "Load3", "Load4", "Load5", "Load6", "Load7", "Load8"}; //Названия выводов
+byte Pinout[8] = {1, 0, 0, 0, 0, 0, 0, 0}; //статус включения вывода(виртуального)
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -192,6 +177,7 @@ AsyncWebServer server(80);
 //AsyncWebServer server(80, LittleFS, "myServer");
 
 unsigned int time_zone = 4;
+String _ntp = "pool.ntp.org";
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 3600*time_zone, 60000);
@@ -208,7 +194,7 @@ unsigned long epochTime;
 
 int old_rssi = 0;
 
-//struct tm *ptm;
+
 
 
 //LiquidCrystal_PCF8574 lcd(0x27);
@@ -314,6 +300,9 @@ void setup() {
     delay(1000);
     bootCount++;
   }
+
+  loadConfig();
+  Serial.println("Start 4-Load Json config");
   //symbolTest();
   //setCpuFrequencyMhz(80);
 
@@ -334,6 +323,7 @@ void setup() {
   if(Wifi_boot){
     WIFIinit();
   }
+  
 
 }
 
@@ -366,19 +356,9 @@ void loop() {
     ResponseStatus rs = e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, input);
     Serial.println(rs.getResponseDescription());
   }
-
-  //esp_sleep_enable_ext0_wakeup(GPIO_NUM_11, 1);
-  //esp_sleep_enable_ext1_wakeup(BUTTON_PIN_BITMASK,ESP_EXT1_WAKEUP_ANY_HIGH);
-  //esp_deep_sleep_start();
-  //esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
-  //
   if (millis() > sleep_timestump + 60*1000 && !allways_on_disp && !Wifi_boot){
-    //sleep_timestump = millis();
-    //setCpuFrequencyMhz(80);
-    //esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
     display_on = false;
     light_sleep(false);
-    //u8g2.setPowerSave(1);
   }
 
   
