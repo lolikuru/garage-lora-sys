@@ -131,12 +131,13 @@ bool print_logf_status = true;
 bool led_msg = true;
 bool send_dht = false;
 bool allways_on_disp = false;
+bool display_on = true;
 
 unsigned long icon_timestamp = 0;
 unsigned long sleep_timestump = millis();
 
 uint8_t lora_link = 3;
-uint16_t lora_symb[4] = {0xe21a, 0xe219, 0xe218, 0xe217};
+uint16_t lora_symb[4] = {0xe21e, 0xe21d, 0xe21c, 0xe21b};
 
 volatile bool interruptExecuted = false;
 
@@ -186,7 +187,7 @@ String _ssidAP = "ESP32LogServer";   // SSID AP точки доступа
 String _passwordAP = "12345678"; // пароль точки доступа
 
 // Create AsyncWebServer object on port 80
-static AsyncWebServer server(80);
+AsyncWebServer server(80);
 
 //AsyncWebServer server(80, LittleFS, "myServer");
 
@@ -298,21 +299,20 @@ void setup() {
 
     //display.display();
     u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_ncenB08_tr);
+    u8g2.setFont(u8g2_font_6x12_t_symbols);
 
     if (!LittleFS.begin(FORMAT_LITTLEFS_IF_FAILED)) {
-      Serial.println("LittleFS Mount Failed");
+      u8g2.drawStr(0, 24, "LittleFS Mount Failed");
       return;
     } else {
-      u8g2.drawStr(0, 32, "LittleFS Mnted");
+      u8g2.drawStr(0, 24, "LittleFS Mnted");
       listDir(LittleFS, "/", 0);
     }
-
-    bootCount++;
-    u8g2.setCursor(0, 16);
-    u8g2.print(" Boot number: " + String(bootCount));
+    u8g2.setCursor(0, 12);
+    u8g2.print("Boot number: " + String(bootCount));
     u8g2.sendBuffer();
     delay(1000);
+    bootCount++;
   }
   //symbolTest();
   //setCpuFrequencyMhz(80);
@@ -372,10 +372,11 @@ void loop() {
   //esp_deep_sleep_start();
   //esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
   //
-  if (millis() > sleep_timestump + 60*1000 && !allways_on_disp){
+  if (millis() > sleep_timestump + 60*1000 && !allways_on_disp && !Wifi_boot){
     //sleep_timestump = millis();
     //setCpuFrequencyMhz(80);
     //esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+    display_on = false;
     light_sleep(false);
     //u8g2.setPowerSave(1);
   }
@@ -403,8 +404,12 @@ void buttonsActive() {
           //sendLoraCommand("DHT");
           u8g2.setPowerSave(0);
           sleep_timestump = millis();
-          setCpuFrequencyMhz(240);
-          main_menu();
+          //setCpuFrequencyMhz(240);
+          if (!display_on){
+            display_on = true;
+          } else {
+            main_menu();
+          }
           
         }
         else if ( i == 2 ) {
@@ -416,7 +421,7 @@ void buttonsActive() {
           sleep_timestump = millis();
           u8g2.setPowerSave(0);
           power_menu();
-          setCpuFrequencyMhz(240);
+          //setCpuFrequencyMhz(240);
         }
 
       } //else drawCircles(i, 0);

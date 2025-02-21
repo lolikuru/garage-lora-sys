@@ -75,6 +75,7 @@ bool StartAPMode() {
       request->send(404, "text/plain", "Log file not found");
     }
   });
+  server.begin();
   
   return true;
 }

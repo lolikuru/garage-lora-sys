@@ -8,12 +8,7 @@ const char * onOff(bool input) {
 
 void main_view() {
 
-  //timeClient.update();
-  //  unsigned long epochTime = timeClient.getEpochTime();
-  //  struct tm *ptm = gmtime((time_t *)&epochTime);//time update
-
   u8g2.clearBuffer();
-  //bool save = get_lora_main_info();
   printVBat(false);
   u8g2.setCursor(0, 24);
   u8g2.print(rtc.getTime("%d/%b/%Y %H:%M:%S"));
@@ -179,7 +174,7 @@ void main_view() {
     else if ( current_selection == 4 ) {
       u8g2.userInterfaceMessage(
         "Print LoRa CFG",
-        "",
+        "from uart port",
         "",
         " ok ");
       ResponseStructContainer c;
@@ -239,7 +234,7 @@ void main_view() {
     else if ( current_selection == 8 ) {
       u8g2.userInterfaceMessage(
         "Print log",
-        "from com port",
+        "from uart port",
         "",
         " ok ");
       readFile(LittleFS, "/log.txt");
@@ -247,7 +242,7 @@ void main_view() {
     else if ( current_selection == 9 ) {
       u8g2.userInterfaceMessage(
         "Delete log",
-        "",
+        "from FS",
         "",
         " ok ");
       deleteFile(LittleFS, "/log.txt");
@@ -256,7 +251,7 @@ void main_view() {
     else if ( current_selection == 10 ) {
       u8g2.userInterfaceMessage(
         "littlefs List",
-        "",
+        "from uart port",
         "",
         " ok ");
       listDir(LittleFS, "/", 0);
