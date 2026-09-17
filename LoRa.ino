@@ -14,8 +14,7 @@ void UpdateLoraInfoStruct() {
     if (rc.status.code != 1) {
       Serial.println(rc.status.getResponseDescription());
     } else {
-      // Prefix like "2.." from a numbered peer; comma-operator rc.data[0, 1] was a bug
-      if (rc.data.length() >= 3 && rc.data.charAt(0) == '2') {
+      if (rc.data[0, 1] == 2) {
         rc.data.remove(0, 3);
       }
       if (rc.data.substring(0, 1) == "I") {
@@ -27,16 +26,18 @@ void UpdateLoraInfoStruct() {
         r_info.msgtime = strtol(time_substring.c_str(), NULL, 10);
         rc.data.remove(0, rc.data.indexOf("/") + 1);
 
-        float new_temp = rc.data.substring(0, rc.data.indexOf("/")).toFloat();
-        rc.data.remove(0, rc.data.indexOf("/") + 1);
-        float new_humid = rc.data.substring(0, rc.data.indexOf("/")).toFloat();
+        r_info.save = true;
+
+        if(host_temp == rc.data.substring(0, rc.data.indexOf("/")).toFloat()) r_info.save = false;
+        else host_temp = rc.data.substring(0, rc.data.indexOf("/")).toFloat();
+        r_info.temp = host_temp;
         rc.data.remove(0, rc.data.indexOf("/") + 1);
 
-        r_info.save = (new_temp != host_temp) || (new_humid != host_humid);
-        host_temp = new_temp;
-        host_humid = new_humid;
-        r_info.temp = host_temp;
+        if (host_humid == rc.data.substring(0, rc.data.indexOf("/")).toFloat()) r_info.save = false;
+        else host_humid = rc.data.substring(0, rc.data.indexOf("/")).toFloat();
         r_info.humid = host_humid;
+        rc.data.remove(0, rc.data.indexOf("/") + 1);
+
         r_info.rssi = lastRssi;
 
         rtc.setTime(strtol(time_substring.c_str(), NULL, 10));
