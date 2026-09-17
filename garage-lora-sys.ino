@@ -221,6 +221,7 @@ const char* LOG_FILE_PATH = "/log.txt";
 
 bool Wifi_boot = false;
 bool WIFI_AP_on = false;
+bool littlefs_ok = false;
 
 unsigned long epochTime;
 
@@ -234,7 +235,7 @@ int old_rssi = 0;
 //U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 //U8G2_SSD1306_128X64_ALT0_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);   // same as the NONAME variant, but may solve the "every 2nd line skipped" problem
 //U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/ 11, /* reset=*/ 8);
-U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ SCL, /* data=*/ SDA);
+U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE);
 //U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ 16, /* data=*/ 17, /* reset=*/ U8X8_PIN_NONE);   // ESP32 Thing, pure SW emulated I2C
 //U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 16, /* data=*/ 17);   // ESP32 Thing, HW I2C with pin remapping
 
@@ -288,43 +289,50 @@ void IRAM_ATTR wakeUp();
 
 void setup() {
   Serial.begin(115200);
-  delay(500);
+  delay(200);
+
+  // Display first: LoRa begin() can block forever waiting for AUX.
+  u8g2.begin(/* menu_select_pin= */ BUTTON_OK, /* menu_next_pin= */ BUTTON_DOWN, /* menu_prev_pin= */ BUTTON_UP, /* menu_home_pin= */ BUTTON_BACK);
+  u8g2.enableUTF8Print();
+  u8g2.setPowerSave(0);
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_6x12_t_symbols);
+  u8g2.drawStr(0, 12, "Boot...");
+  u8g2.sendBuffer();
+  Serial.println("Start 3-SSD1306 Display and botton module");
 
   initTempSensor();
   Serial.println("Start 1 TempSensor");
 
+  u8g2.drawStr(0, 24, "LoRa...");
+  u8g2.sendBuffer();
   e220ttl.begin();
   Serial.println("Start 2 LoRa module");
-
-  Wire.begin(SDA, SCL);
-  u8g2.begin(/* menu_select_pin= */ BUTTON_OK, /* menu_next_pin= */ BUTTON_DOWN, /* menu_prev_pin= */ BUTTON_UP, /* menu_home_pin= */ BUTTON_BACK);
-  u8g2.enableUTF8Print();
-  Serial.println("Start 3-SSD1306 Display and botton module");
 
   bool showSplash = (bootCount == 0);
   bootCount++;
 
-  u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_6x12_t_symbols);
-
-  if (!LittleFS.begin(FORMAT_LITTLEFS_IF_FAILED)) {
+  littlefs_ok = LittleFS.begin(FORMAT_LITTLEFS_IF_FAILED);
+  if (!littlefs_ok) {
     Serial.println("LittleFS Mount Failed");
-    u8g2.drawStr(0, 24, "LittleFS Mount Failed");
+    u8g2.drawStr(0, 36, "LittleFS Failed");
     u8g2.sendBuffer();
   } else {
+    u8g2.drawStr(0, 36, "LittleFS Mnted");
+    u8g2.setCursor(0, 48);
+    u8g2.print("Boot number: ");
+    u8g2.print(bootCount);
+    u8g2.sendBuffer();
     if (showSplash) {
       ResponseStructContainer c = e220ttl.getConfiguration();
-      Configuration configuration = *(Configuration*) c.data;
-      Serial.println(c.status.getResponseDescription());
-      Serial.println(c.status.code);
-      printParameters(configuration);
+      if (c.data != NULL) {
+        Configuration configuration = *(Configuration*) c.data;
+        Serial.println(c.status.getResponseDescription());
+        Serial.println(c.status.code);
+        printParameters(configuration);
+      }
       c.close();
-
-      u8g2.drawStr(0, 24, "LittleFS Mnted");
       listDir(LittleFS, "/", 0);
-      u8g2.setCursor(0, 12);
-      u8g2.print("Boot number: " + String(bootCount));
-      u8g2.sendBuffer();
       delay(1000);
     }
     loadConfig();
@@ -347,10 +355,10 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, LOW);
   e220ttl.setMode(MODE_0_NORMAL);
-  attachInterrupt(digitalPinToInterrupt(LORA_AUX_PIN), wakeUp, FALLING);
 
   epochTime = millis() / 1000;
   sleep_timestump = millis();
+  display_on = true;
   if (Wifi_boot) {
     WIFIinit();
   }

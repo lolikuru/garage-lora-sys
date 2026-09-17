@@ -172,6 +172,9 @@ void deleteFile2(fs::FS &fs, const char * path){
 }
 
 float get_log_size(){
+  if (!littlefs_ok) {
+    return 0;
+  }
   File f_file = LittleFS.open("/log.txt", "r");
   if (f_file){
     size_t bytes = f_file.size();

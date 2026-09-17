@@ -15,27 +15,28 @@ void deep_sleep() {
 }
 
 void light_sleep(bool on_display) {
-  uint64_t wakeup_pin_mask = (1ULL << GPIO_NUM_2) | (1ULL << GPIO_NUM_11);
   prepareSleepWakeupPins();
-  // ANY_LOW: wake on OK button or LoRa AUX. ALL_LOW required BOTH pins low at once.
-  esp_sleep_enable_ext1_wakeup(wakeup_pin_mask, ESP_EXT1_WAKEUP_ANY_LOW);
+  // ESP32 Arduino 2.0.9 has no ESP_EXT1_WAKEUP_ANY_LOW. For light sleep,
+  // GPIO wakeup fires when ANY of these pins goes LOW (OK button or LoRa AUX).
+  gpio_wakeup_enable(GPIO_NUM_2, GPIO_INTR_LOW_LEVEL);
+  gpio_wakeup_enable(GPIO_NUM_11, GPIO_INTR_LOW_LEVEL);
+  esp_sleep_enable_gpio_wakeup();
   u8g2.setPowerSave(1);
   Serial.flush();
   esp_light_sleep_start();
 
+  gpio_wakeup_disable(GPIO_NUM_2);
+  gpio_wakeup_disable(GPIO_NUM_11);
+
   sleep_timestump = millis();
   e220ttl.setMode(MODE_0_NORMAL);
 
-  esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
   bool wake_display = on_display;
-  if (cause == ESP_SLEEP_WAKEUP_EXT1) {
-    uint64_t st = esp_sleep_get_ext1_wakeup_status();
-    if (st & (1ULL << GPIO_NUM_11)) {
-      interruptExecuted = true;
-    }
-    if (st & (1ULL << GPIO_NUM_2)) {
-      wake_display = true;
-    }
+  if (digitalRead(GPIO_NUM_11) == LOW) {
+    interruptExecuted = true;
+  }
+  if (digitalRead(GPIO_NUM_2) == LOW) {
+    wake_display = true;
   }
   if (wake_display) {
     display_on = true;
