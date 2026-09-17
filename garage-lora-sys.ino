@@ -46,7 +46,7 @@
 
 #include "esp_sleep.h"
 #include "driver/gpio.h"
-#include <esp_clk.h>
+#include "driver/rtc_io.h"
 
 // With FIXED RECEIVER configuration
 #define DESTINATION_ADDL 2
@@ -57,7 +57,6 @@
 
 #include "Arduino.h"
 #include "LoRa_E220.h"
-#include <Arduino.h>
 #include <Wire.h>
 
 #include <U8g2lib.h>
@@ -81,14 +80,14 @@
 //#include <base64.h>
 #include <Base64.h>
 
-void initTempSensor() {
+void initTempSensor() {//метод внутренней температуры
   temp_sensor_config_t temp_sensor = TSENS_CONFIG_DEFAULT();
   temp_sensor.dac_offset = TSENS_DAC_L2;  // TSENS_DAC_L2 is default; L4(-40°C ~ 20°C), L2(-10°C ~ 80°C), L1(20°C ~ 100°C), L0(50°C ~ 125°C)
   temp_sensor_set_config(temp_sensor);
   temp_sensor_start();
 }
 
-HardwareSerial MySerial(1);
+HardwareSerial MySerial(1);//Lora Serial
 
 #define WIRE Wire
 
@@ -98,20 +97,37 @@ HardwareSerial MySerial(1);
 #define BUTTON_BACK 6
 
 #define LED_PIN  15
+#define VBAT_PIN GPIO_NUM_10
+
+// E220 UART: Arduino TX --> E220 RX, Arduino RX <-- E220 TX
+// On ESP32-S2-WROOM/WROVER GPIO33-39 are often tied to in-package flash/PSRAM.
+// If the board reboots/loops with flash errors, move UART to free GPIOs (e.g. 17/18).
+#define LORA_TX_PIN 37
+#define LORA_RX_PIN 39
+#define LORA_AUX_PIN AUX_PIN
+#define LORA_M0_PIN 3
+#define LORA_M1_PIN 5
+#define LORA_CHANNEL 23
+
+#define DHT_SEND_INTERVAL_MS 5000UL
 
 //#define FORMAT_SPIFFS_IF_FAILED true
 #define FORMAT_LITTLEFS_IF_FAILED true
+
+#define DBG_OUTPUT_PORT Serial
 
 bool button[] = {0, 0, 0, 0};
 bool stateButton[] = {0, 0, 0, 0};
 
 int lastRssi = 0;
 
-bool print_logf_status = true;
-bool led_msg = true;
+//bool print_logf_status = true;
+//bool led_msg = true;
 bool send_dht = false;
-bool allways_on_disp = false;
+//bool allways_on_disp = false;
 bool display_on = true;
+
+//bool procent_battery = false;
 
 unsigned long icon_timestamp = 0;
 unsigned long sleep_timestump = millis();
@@ -130,19 +146,26 @@ float host_humid = 0;
 
 uint8_t current_selection = 0;
 
-uint8_t off_display_sec = 30;
-
 uint8_t relay[8] {B00000000};
 
 RTC_DATA_ATTR int bootCount = 0;
 
 //json test
-struct Config {
-  int id;
-  bool wifi_boot;
-  char hostname[64];
-  int port;
-};
+
+uint8_t client_id = 1;
+String SSDPName = "GarageClient";
+String ssidAPName = "ESP32LogServer";
+String ssidAPPassword = "12345678";
+String ssidName = "";
+String ssidPassword = "";
+int timezone = 4;
+String ntp = "pool.ntp.org";
+uint8_t off_display_sec = 60;
+bool allways_on_disp = false;
+bool led_msg = true;
+bool print_logf_status = true;
+bool procent_battery = false;
+
 
 struct Info {
   unsigned long msgtime;
@@ -154,11 +177,17 @@ struct Info {
   bool save = false;
 };
 
+struct loadsConfig {
+  int id;
+  String name;
+  bool state;
+};
+
 struct Info r_info;
 String jsonConfig = "{}";
 
 const char* config_filename = "/config.json";  // <- SD library uses 8.3 filenames
-Config config;                         // <- global configuration object
+loadsConfig s_Relay;
 
 
 // Определяем переменные wifi
@@ -174,15 +203,18 @@ byte Pinout[8] = {1, 0, 0, 0, 0, 0, 0, 0}; //статус включения в�
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
+File fsUploadFile;
+
 //AsyncWebServer server(80, LittleFS, "myServer");
 
-unsigned int time_zone = 4;
-String _ntp = "pool.ntp.org";
+//unsigned int time_zone = 4;
+//String _ntp = "pool.ntp.org";
 
+char ntpServer[64] = "pool.ntp.org";
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", 3600*time_zone, 60000);
+NTPClient timeClient(ntpUDP, ntpServer, 3600 * 4, 60000);
 
-ESP32Time rtc(3600*time_zone);
+ESP32Time rtc(0);
 
 // Log file configuration
 const char* LOG_FILE_PATH = "/log.txt";
@@ -202,7 +234,7 @@ int old_rssi = 0;
 //U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 //U8G2_SSD1306_128X64_ALT0_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);   // same as the NONAME variant, but may solve the "every 2nd line skipped" problem
 //U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/ 11, /* reset=*/ 8);
-U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE);   // All Boards without Reset of the Display
+U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ SCL, /* data=*/ SDA);
 //U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ 16, /* data=*/ 17, /* reset=*/ U8X8_PIN_NONE);   // ESP32 Thing, pure SW emulated I2C
 //U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 16, /* data=*/ 17);   // ESP32 Thing, HW I2C with pin remapping
 
@@ -240,7 +272,7 @@ int rssi;
 // LoRa_E220 e220ttl(&Serial2, 15, 21, 19); //  RX AUX M0 M1
 
 //LoRa_E220 e220ttl(&Serial2, 1, 2, 4, 6, 8, UART_BPS_RATE_9600); //  esp32 RX <-- e220 TX, esp32 TX --> e220 RX AUX M0 M1
-LoRa_E220 e220ttl(37, 39, &MySerial, 11, 3, 5, UART_BPS_RATE_9600, SERIAL_8N1);
+LoRa_E220 e220ttl(LORA_TX_PIN, LORA_RX_PIN, &MySerial, LORA_AUX_PIN, LORA_M0_PIN, LORA_M1_PIN, UART_BPS_RATE_9600, SERIAL_8N1);
 // -------------------------------------
 
 // ---------- Raspberry PI Pico pins --------------
@@ -252,79 +284,76 @@ LoRa_E220 e220ttl(37, 39, &MySerial, 11, 3, 5, UART_BPS_RATE_9600, SERIAL_8N1);
 //LoRa_E220 e220ttl(&Serial2, PA0, PB0, PB10); //  RX AUX M0 M1
 // -------------------------------------------------
 void printParameters(struct Configuration configuration);
+void IRAM_ATTR wakeUp();
 
 void setup() {
-  int error;
-
   Serial.begin(115200);
   delay(500);
 
   initTempSensor();
   Serial.println("Start 1 TempSensor");
 
-  // Startup all pins and UART
   e220ttl.begin();
   Serial.println("Start 2 LoRa module");
 
-
-  u8g2.begin(/* menu_select_pin= */ 2, /* menu_next_pin= */ 4, /* menu_prev_pin= */ 1, /* menu_home_pin= */ 6);
+  Wire.begin(SDA, SCL);
+  u8g2.begin(/* menu_select_pin= */ BUTTON_OK, /* menu_next_pin= */ BUTTON_DOWN, /* menu_prev_pin= */ BUTTON_UP, /* menu_home_pin= */ BUTTON_BACK);
   u8g2.enableUTF8Print();
   Serial.println("Start 3-SSD1306 Display and botton module");
 
+  bool showSplash = (bootCount == 0);
+  bootCount++;
 
-  if (bootCount != 1) {
-    ResponseStructContainer c;
-    c = e220ttl.getConfiguration();
-    // It's important get configuration pointer before all other operation
-    Configuration configuration = *(Configuration*) c.data;
-    Serial.println(c.status.getResponseDescription());
-    Serial.println(c.status.code);
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_6x12_t_symbols);
 
-    printParameters(configuration);
-    c.close();
+  if (!LittleFS.begin(FORMAT_LITTLEFS_IF_FAILED)) {
+    Serial.println("LittleFS Mount Failed");
+    u8g2.drawStr(0, 24, "LittleFS Mount Failed");
+    u8g2.sendBuffer();
+  } else {
+    if (showSplash) {
+      ResponseStructContainer c = e220ttl.getConfiguration();
+      Configuration configuration = *(Configuration*) c.data;
+      Serial.println(c.status.getResponseDescription());
+      Serial.println(c.status.code);
+      printParameters(configuration);
+      c.close();
 
-    //display.display();
-    u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_6x12_t_symbols);
-
-    if (!LittleFS.begin(FORMAT_LITTLEFS_IF_FAILED)) {
-      u8g2.drawStr(0, 24, "LittleFS Mount Failed");
-      return;
-    } else {
       u8g2.drawStr(0, 24, "LittleFS Mnted");
       listDir(LittleFS, "/", 0);
+      u8g2.setCursor(0, 12);
+      u8g2.print("Boot number: " + String(bootCount));
+      u8g2.sendBuffer();
+      delay(1000);
     }
-    u8g2.setCursor(0, 12);
-    u8g2.print("Boot number: " + String(bootCount));
-    u8g2.sendBuffer();
-    delay(1000);
-    bootCount++;
+    loadConfig();
+    strncpy(ntpServer, ntp.c_str(), sizeof(ntpServer) - 1);
+    ntpServer[sizeof(ntpServer) - 1] = '\0';
+    timeClient.setPoolServerName(ntpServer);
+    timeClient.setTimeOffset(3600 * timezone);
+    Serial.println("Start 4-Load Json config");
   }
 
-  loadConfig();
-  Serial.println("Start 4-Load Json config");
-  //symbolTest();
-  //setCpuFrequencyMhz(80);
-
-  //bottons
-  pinMode(BUTTON_UP, INPUT);
-  pinMode(BUTTON_OK, INPUT);
-  pinMode(BUTTON_DOWN, INPUT);
-  pinMode(BUTTON_BACK, INPUT);
-
-  pinMode(GPIO_NUM_10, INPUT);
+  pinMode(BUTTON_UP, INPUT_PULLUP);
+  pinMode(BUTTON_OK, INPUT_PULLUP);
+  pinMode(BUTTON_DOWN, INPUT_PULLUP);
+  pinMode(BUTTON_BACK, INPUT_PULLUP);
+  pinMode(LORA_AUX_PIN, INPUT_PULLUP);
+  pinMode(VBAT_PIN, INPUT);
 
   analogReadResolution(12);
 
   pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
   e220ttl.setMode(MODE_0_NORMAL);
+  attachInterrupt(digitalPinToInterrupt(LORA_AUX_PIN), wakeUp, FALLING);
 
-  epochTime=millis()/1000;
-  if(Wifi_boot){
+  epochTime = millis() / 1000;
+  sleep_timestump = millis();
+  if (Wifi_boot) {
     WIFIinit();
   }
-  
-
 }
 
 void loop() {
@@ -333,30 +362,33 @@ void loop() {
   if(interruptExecuted) {
     Serial.println("WakeUp Callback, AUX pin go LOW and start receive message!");
     Serial.flush();
-    //attachInterrupt(digitalPinToInterrupt(AUX_PIN), wakeUp, FALLING);
     interruptExecuted = false;
     e220ttl.setMode(MODE_0_NORMAL);
+    display_on = true;
     u8g2.setPowerSave(0);
+    sleep_timestump = millis();
   }
   
   buttonsActive();
   UpdateLoraInfoStruct();
-  main_view();
+  if (display_on) {
+    main_view();
+  }
 
   if (send_dht) {
-    if (millis() % 3000 < 200) {
+    static unsigned long last_dht_send = 0;
+    if (millis() - last_dht_send >= DHT_SEND_INTERVAL_MS) {
+      last_dht_send = millis();
       testDhtMessage();
     }
   }
-  
 
   if (Serial.available()) {
-
     String input = Serial.readString();
-    ResponseStatus rs = e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, input);
+    ResponseStatus rs = e220ttl.sendFixedMessage(0, DESTINATION_ADDL, LORA_CHANNEL, input);
     Serial.println(rs.getResponseDescription());
   }
-  if (millis() > sleep_timestump + 60*1000 && !allways_on_disp && !Wifi_boot){
+  if (!allways_on_disp && !Wifi_boot && (millis() - sleep_timestump > (unsigned long)off_display_sec * 1000UL)) {
     display_on = false;
     light_sleep(false);
   }
@@ -376,32 +408,15 @@ void buttonsActive() {
       stateButton[i] = button[i];
       if (button[i] == 1) {
         Serial.printf("Botton %d\n" , i);
-        if ( i == 0 ) {
-          sleep_timestump = millis();
-          u8g2.setPowerSave(0);
+        bool was_on = display_on;
+        sleep_timestump = millis();
+        display_on = true;
+        u8g2.setPowerSave(0);
+        if ( i == 1 && was_on) {
+          main_menu();
         }
-        else if ( i == 1 ) {
-          //sendLoraCommand("DHT");
-          u8g2.setPowerSave(0);
-          sleep_timestump = millis();
-          //setCpuFrequencyMhz(240);
-          if (!display_on){
-            display_on = true;
-          } else {
-            main_menu();
-          }
-          
-        }
-        else if ( i == 2 ) {
-          sleep_timestump = millis();
-          u8g2.setPowerSave(0);
-        }
-        //        }
-        else if ( i == 3 ) {
-          sleep_timestump = millis();
-          u8g2.setPowerSave(0);
+        else if ( i == 3 && was_on) {
           power_menu();
-          //setCpuFrequencyMhz(240);
         }
 
       } //else drawCircles(i, 0);
@@ -412,13 +427,12 @@ void buttonsActive() {
 float getIncludeTemperature() {
   float result = 0;
   temp_sensor_read_celsius(&result);
-  u8g2.print(" " + String(result) + "C ");
   return result;
 }
 
 void sendLoraCommand(String cmd) {
   Serial.println("Send " + cmd);
-  e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "1" + cmd + "1");
+  e220ttl.sendFixedMessage(0, DESTINATION_ADDL, LORA_CHANNEL, "1" + cmd + "1");
 }
 
 //void lightSleep() {

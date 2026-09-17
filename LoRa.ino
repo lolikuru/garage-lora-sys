@@ -14,7 +14,8 @@ void UpdateLoraInfoStruct() {
     if (rc.status.code != 1) {
       Serial.println(rc.status.getResponseDescription());
     } else {
-      if (rc.data[0, 1] == 2) {
+      // Prefix like "2.." from a numbered peer; comma-operator rc.data[0, 1] was a bug
+      if (rc.data.length() >= 3 && rc.data.charAt(0) == '2') {
         rc.data.remove(0, 3);
       }
       if (rc.data.substring(0, 1) == "I") {
@@ -25,28 +26,20 @@ void UpdateLoraInfoStruct() {
         time_substring = rc.data.substring(0, rc.data.indexOf("/"));
         r_info.msgtime = strtol(time_substring.c_str(), NULL, 10);
         rc.data.remove(0, rc.data.indexOf("/") + 1);
-        //Serial.println(time_substring);
 
-        r_info.save = true;
+        float new_temp = rc.data.substring(0, rc.data.indexOf("/")).toFloat();
+        rc.data.remove(0, rc.data.indexOf("/") + 1);
+        float new_humid = rc.data.substring(0, rc.data.indexOf("/")).toFloat();
+        rc.data.remove(0, rc.data.indexOf("/") + 1);
 
-        if(host_temp == rc.data.substring(0, rc.data.indexOf("/")).toFloat()) r_info.save = false;
-        else host_temp = rc.data.substring(0, rc.data.indexOf("/")).toFloat();
+        r_info.save = (new_temp != host_temp) || (new_humid != host_humid);
+        host_temp = new_temp;
+        host_humid = new_humid;
         r_info.temp = host_temp;
-        rc.data.remove(0, rc.data.indexOf("/") + 1);
-
-        if (host_humid == rc.data.substring(0, rc.data.indexOf("/")).toFloat()) r_info.save = false;
-        else host_humid = rc.data.substring(0, rc.data.indexOf("/")).toFloat();
         r_info.humid = host_humid;
-        rc.data.remove(0, rc.data.indexOf("/") + 1);
-
         r_info.rssi = lastRssi;
 
-        rtc.setTime(strtol(time_substring.c_str(), NULL, 10) - 3600 * time_zone);
-
-        //        Serial.println("left: " + rc.data);
-        //        Serial.println("host_temp: " + String(host_temp));
-        //        Serial.println("host_humid: " + String(host_humid));
-        //Serial.printf("%u %2.1f %2.1f %i\n", r_info.msgtime, r_info.temp, r_info.humid, r_info.rssi);
+        rtc.setTime(strtol(time_substring.c_str(), NULL, 10));
 
       } else {
         r_info.save = false;
@@ -63,9 +56,8 @@ void UpdateLoraInfoStruct() {
   if(led_msg)digitalWrite(LED_PIN, LOW);
 }
 
-void wakeUp() {
+void IRAM_ATTR wakeUp() {
   interruptExecuted = true;
-  //detachInterrupt(digitalPinToInterrupt(AUX_PIN));
 }
 
 //void testTimeMessage() {

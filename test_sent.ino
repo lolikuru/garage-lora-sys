@@ -13,7 +13,7 @@ void test_send() {
 
 
 
-    e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "\nTest " + String(millis() / 5000, DEC) +  \
+    e220ttl.sendFixedMessage(0, DESTINATION_ADDL, LORA_CHANNEL, "\nTest " + String(millis() / 5000, DEC) +  \
                              "  " + String(getIncludeTemperature()) + "C");
 
     //int analogValue = analogRead(GPIO_NUM_10);
@@ -25,7 +25,7 @@ void test_send() {
     Serial.println(tVBat);
     u8g2.print(tVBat);
     u8g2.println("V");
-    u8g2.display();
+    u8g2.sendBuffer();
   }
 }
 
@@ -95,9 +95,9 @@ void testDhtMessage() {
   if(Wifi_boot){
     //epochTime = timeClient.getEpochTime();
     //tm *ptm = gmtime((time_t *)&epochTime);
-    e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "/TIME" + String(epochTime));
-  } else e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "/TIME" + String(millis()/1000));
+    e220ttl.sendFixedMessage(0, DESTINATION_ADDL, LORA_CHANNEL, "/TIME" + String(epochTime));
+  } else e220ttl.sendFixedMessage(0, DESTINATION_ADDL, LORA_CHANNEL, "/TIME" + String(millis()/1000));
   delay(150);
-  e220ttl.sendFixedMessage(0, DESTINATION_ADDL, 23, "/DHT" + String(result) + "/0.00");
+  e220ttl.sendFixedMessage(0, DESTINATION_ADDL, LORA_CHANNEL, "/DHT" + String(result) + "/0.00");
   delay(150);
 }

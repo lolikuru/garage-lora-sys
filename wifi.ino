@@ -7,12 +7,12 @@ void WIFIinit() {
   u8g2.println("Wi-Fi connect");
   u8g2.sendBuffer();
   byte tries = 11;
-  WiFi.begin(_ssid.c_str(), _password.c_str());
+  WiFi.begin(ssidName.c_str(), ssidPassword.c_str());
   // Делаем проверку подключения до тех пор пока счетчик tries
   // не станет равен нулю или не получим подключение
+  u8g2.setCursor(78, 12);
   while (--tries && WiFi.status() != WL_CONNECTED)
   {
-    u8g2.setCursor(78, 12);
     u8g2.print(".");
     u8g2.sendBuffer();
     delay(1000);
@@ -34,22 +34,24 @@ void WIFIinit() {
     u8g2.print(WiFi.localIP());
     u8g2.setCursor(0, 48);
     u8g2.print("Time zone: ");
-    u8g2.print(time_zone);
+    u8g2.print(timezone);
     u8g2.setCursor(0, 60);
     u8g2.print("SSID: ");
-    u8g2.print(_ssid.c_str());
+    u8g2.print(ssidName.c_str());
     u8g2.sendBuffer();
     timeClient.begin();
     timeClient.update();
 
-    unsigned long epochTime = timeClient.getEpochTime();
-    struct tm *ptm = gmtime((time_t *)&epochTime);
-    rtc.setTime(epochTime);
+    unsigned long syncedEpoch = timeClient.getEpochTime();
+    epochTime = syncedEpoch;
+    struct tm *ptm = gmtime((time_t *)&syncedEpoch);
+    rtc.setTime(syncedEpoch);
 
     Serial.printf("Текущее время: %02d:%02d:%02d\n", ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
     delay(5000);
-    WiFi.disconnect(true);
-    WiFi.mode(WIFI_OFF);
+    //WiFi.disconnect(true);
+    //WiFi.mode(WIFI_OFF);
+    FS_Browser_init();
   }
 }
 
@@ -65,17 +67,18 @@ bool StartAPMode() {
   WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
   // Включаем WIFI в режиме точки доступа с именем и паролем
   // хронящихся в переменных _ssidAP _passwordAP
-  WiFi.softAP(_ssidAP.c_str(), _passwordAP.c_str());
+  WiFi.softAP(ssidAPName.c_str(), ssidAPPassword.c_str());
 
     // Route for root / web page
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    if (LittleFS.exists(LOG_FILE_PATH)) {
-      request->send(LittleFS, LOG_FILE_PATH, "text/plain");
-    } else {
-      request->send(404, "text/plain", "Log file not found");
-    }
-  });
-  server.begin();
+//  server.on("/log", HTTP_GET, [](AsyncWebServerRequest *request){
+//    if (LittleFS.exists(LOG_FILE_PATH)) {
+//      request->send(LittleFS, LOG_FILE_PATH, "text/plain");
+//    } else {
+//      request->send(404, "text/plain", "Log file not found");
+//    }
+//  });
+  FS_Browser_init();
+  //server.begin();
   
   return true;
 }

@@ -1,7 +1,7 @@
 float realVBat() {//only 100/100komh GPIO_NUM_10
   uint32_t Vbatt = 0;
   for (int i = 0; i < 16; i++) {
-    Vbatt = Vbatt + analogReadMilliVolts(GPIO_NUM_10); // ADC with correction
+    Vbatt = Vbatt + analogReadMilliVolts(VBAT_PIN); // ADC with correction
   }
   float Vbattf = Vbatt / 16 ;
   //Serial.println(Vbattf);
