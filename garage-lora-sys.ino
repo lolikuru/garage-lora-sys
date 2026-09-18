@@ -156,8 +156,8 @@ uint8_t client_id = 1;
 String SSDPName = "GarageClient";
 String ssidAPName = "ESP32LogServer";
 String ssidAPPassword = "12345678";
-String ssidName = "";
-String ssidPassword = "";
+String ssidName = "Saya";
+String ssidPassword = "markiz18";
 int timezone = 4;
 String ntp = "pool.ntp.org";
 uint8_t off_display_sec = 60;
@@ -414,20 +414,20 @@ void buttonsActive() {
   for (byte i = 0; i < 4; i++) {
     if (stateButton[i] != button[i]) {
       stateButton[i] = button[i];
-      if (button[i] == 1) {
-        Serial.printf("Botton %d\n" , i);
-        bool was_on = display_on;
-        sleep_timestump = millis();
-        display_on = true;
-        u8g2.setPowerSave(0);
-        if ( i == 1 && was_on) {
-          main_menu();
-        }
-        else if ( i == 3 && was_on) {
-          power_menu();
-        }
-
-      } //else drawCircles(i, 0);
+if (button[i] == 1) {
+      Serial.printf("Botton %d\n" , i);
+      bool was_on = display_on;
+      sleep_timestump = millis();
+      display_on = true;
+      delay(300);
+      u8g2.setPowerSave(0);
+      if ( i == 1 && was_on) {
+        main_menu();
+      }
+      else if ( i == 3 && was_on) {
+        power_menu();
+      }
+    } //else drawCircles(i, 0);
     }
   }
 }

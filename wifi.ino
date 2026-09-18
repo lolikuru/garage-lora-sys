@@ -23,6 +23,7 @@ void WIFIinit() {
     u8g2.setCursor(0, 24);
     u8g2.println("WiFi up AP");
     StartAPMode();
+    delay(1000);
   }
   else {
     // Иначе удалось подключиться отправляем сообщение
@@ -41,13 +42,14 @@ void WIFIinit() {
     u8g2.sendBuffer();
     timeClient.begin();
     timeClient.update();
+    delay(1000);
 
     unsigned long syncedEpoch = timeClient.getEpochTime();
     epochTime = syncedEpoch;
     struct tm *ptm = gmtime((time_t *)&syncedEpoch);
     rtc.setTime(syncedEpoch);
 
-    Serial.printf("Текущее время: %02d:%02d:%02d\n", ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
+    Serial.printf("Now time is: %02d:%02d:%02d\n", ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
     delay(5000);
     //WiFi.disconnect(true);
     //WiFi.mode(WIFI_OFF);
