@@ -13,6 +13,7 @@ void UpdateLoraInfoStruct() {
 
     if (rc.status.code != 1) {
       Serial.println(rc.status.getResponseDescription());
+      Serial.println(rc.status.code);
     } else {
       if (rc.data[0, 1] == 2) {
         rc.data.remove(0, 3);

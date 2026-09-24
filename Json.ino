@@ -45,7 +45,11 @@ bool loadConfig() {
     if (!docConfig["Client" + String(client_id)][8].isNull()) {
       Wifi_boot = docConfig["Client" + String(client_id)][8];
     }
+    if (!docConfig["Client" + String(client_id)][9].isNull()) {
+      Frequency = docConfig["Client" + String(client_id)][9];
+    }
     strncpy(ntpServer, ntp.c_str(), sizeof(ntpServer) - 1);
+
     ntpServer[sizeof(ntpServer) - 1] = '\0';
   } 
   configFile.close();
@@ -75,15 +79,17 @@ bool saveConfig() {
   }
 
   JsonArray SelfSettings = docConfig["Client" + String(client_id)].to<JsonArray>();
-  SelfSettings.add(SSDPName); //0
-  SelfSettings.add(timezone); //1
-  SelfSettings.add(ntp); //2
-  SelfSettings.add(off_display_sec); //3
-  SelfSettings.add(allways_on_disp); //4
-  SelfSettings.add(led_msg);//5
-  SelfSettings.add(print_logf_status);//6
-  SelfSettings.add(procent_battery);//7
-  SelfSettings.add(Wifi_boot);//8
+    SelfSettings.add(SSDPName); //0
+    SelfSettings.add(timezone); //1
+    SelfSettings.add(ntp); //2
+    SelfSettings.add(off_display_sec); //3
+    SelfSettings.add(allways_on_disp); //4
+    SelfSettings.add(led_msg);//5
+    SelfSettings.add(print_logf_status);//6
+    SelfSettings.add(procent_battery);//7
+    SelfSettings.add(Wifi_boot);//8
+    SelfSettings.add(Frequency); //9
+
   
   serializeJson(docConfig, jsonConfig);
   // Открываем файл для записи

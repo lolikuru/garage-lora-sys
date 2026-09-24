@@ -125,8 +125,8 @@ int lastRssi = 0;
 //bool led_msg = true;
 bool send_dht = false;
 //bool allways_on_disp = false;
-bool display_on = true;
-
+int current_menu = 0; // 0: Main, 1: Settings, 2: Log, 3: Power
+int prev_menu = -1;
 //bool procent_battery = false;
 
 unsigned long icon_timestamp = 0;
@@ -162,9 +162,11 @@ int timezone = 4;
 String ntp = "pool.ntp.org";
 uint8_t off_display_sec = 60;
 bool allways_on_disp = false;
+bool display_on = true;
 bool led_msg = true;
 bool print_logf_status = true;
 bool procent_battery = false;
+uint32_t Frequency = 160;
 
 
 struct Info {
