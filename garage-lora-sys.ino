@@ -122,7 +122,7 @@ bool stateButton[] = {0, 0, 0, 0};
 int lastRssi = 0;
 
 //bool print_logf_status = true;
-//bool led_msg = true;
+bool raw_lora_receive = false;
 bool send_dht = false;
 //bool allways_on_disp = false;
 int current_menu = 0; // 0: Main, 1: Settings, 2: Log, 3: Power

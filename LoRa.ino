@@ -10,7 +10,9 @@ void UpdateLoraInfoStruct() {
 #else
     ResponseContainer rc = e220ttl.receiveMessage();
 #endif
-
+    if (raw_lora_receive) {
+        Serial.println(rc.data);
+    }
     if (rc.status.code != 1) {
       Serial.println(rc.status.getResponseDescription());
       Serial.println(rc.status.code);

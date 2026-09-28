@@ -23,23 +23,10 @@ void light_sleep(bool on_display) {
   esp_sleep_enable_gpio_wakeup();
   u8g2.setPowerSave(1);
   Serial.flush();
-  esp_light_sleep_start();
+  // Выключаем экран без перехода в light_sleep
+}
 
-  gpio_wakeup_disable(GPIO_NUM_2);
-  gpio_wakeup_disable(GPIO_NUM_11);
-
-  sleep_timestump = millis();
-  e220ttl.setMode(MODE_0_NORMAL);
-
-  bool wake_display = on_display;
-  if (digitalRead(GPIO_NUM_11) == LOW) {
-    interruptExecuted = true;
-  }
-  if (digitalRead(GPIO_NUM_2) == LOW) {
-    wake_display = true;
-  }
-  if (wake_display) {
-    display_on = true;
-    u8g2.setPowerSave(0);
-  }
+void display_off() {
+  display_on = false;
+  u8g2.setPowerSave(0);
 }

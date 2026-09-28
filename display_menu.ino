@@ -2,10 +2,8 @@ void log_menu() { //cursor string
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_6x12_t_symbols);
   const char *debug_list =
-    "Send test temp\n"
-    "Delete json\n"
-    "Print json config\n"
     "Print LoRa CFG\n"
+    "RAW Lora Receve\n"
     "LED MSG\n"
     "Wifi log AP\n"
     "Log size view\n"
@@ -60,17 +58,17 @@ void log_menu() { //cursor string
   }
 
   else if ( current_selection == 5 ) {
-   uint8_t sure = u8g2.userInterfaceMessage(
-      "LED MSG change",
-      "now: ",
-      onOff(led_msg),
-      " Change \n Cancel ");
+    uint8_t sure = u8g2.userInterfaceMessage(
+       "LED MSG change",
+       "now: ",
+       onOff(led_msg),
+       " Change \n Cancel ");
     if (sure == 1) {
       led_msg = !led_msg;
       saveConfig();
     }
   }
-
+  
   else if ( current_selection == 6 ) {
     uint8_t choice = u8g2.userInterfaceMessage(
                        "Wifi log AP",
@@ -92,12 +90,19 @@ void log_menu() { //cursor string
       }
     }
   }
-
-  else if ( current_selection == 7 ) {
-    const char* logf_on_str = "OFF";
-    if (print_logf_status) {
-      logf_on_str = "ON";
+  
+  else if ( current_selection == 13 ) {
+    uint8_t sure = u8g2.userInterfaceMessage(
+       "RAW Lora Receve",
+       "now: ",
+       onOff(raw_lora_receive),
+       " Change \n Cancel ");
+    if (sure == 1) {
+      raw_lora_receive = !raw_lora_receive;
+      saveConfig();
     }
+  }
+  else if ( current_selection == 14 ) {
     uint8_t choice = u8g2.userInterfaceMessage(
                        "Log size view",
                        "now:",
@@ -108,40 +113,40 @@ void log_menu() { //cursor string
       saveConfig();
     }
   }
-  else if ( current_selection == 8 ) {
+  else if ( current_selection == 15 ) {
     u8g2.userInterfaceMessage(
-      "Print log",
-      "from uart port",
-      "",
-      " ok ");
+       "Print log",
+       "from uart port",
+       "",
+       " ok ");
     readFile(LittleFS, "/log.txt");
   }
-  else if ( current_selection == 9 ) {
+  else if ( current_selection == 16 ) {
     u8g2.userInterfaceMessage(
-      "Delete log",
-      "from FS",
-      "",
-      " ok ");
+       "Delete log",
+       "from FS",
+       "",
+       " ok ");
     deleteFile(LittleFS, "/log.txt");
   }
-
-  else if ( current_selection == 10 ) {
+  else if ( current_selection == 17 ) {
     u8g2.userInterfaceMessage(
-      "littlefs List",
-      "from uart port",
-      "",
-      " ok ");
+       "littlefs List",
+       "from uart port",
+       "",
+       " ok ");
     listDir(LittleFS, "/", 0);
   }
-  else if ( current_selection == 11) {
+  else if ( current_selection == 18) {
     //menu_page = 1;
     main_menu();
   }
-
-  else if ( current_selection == 12 ) {
+  
+  else if ( current_selection == 19 ) {
     current_selection = 0;
     u8g2.clearBuffer();
   }
+
 }
 
 void power_menu() {
