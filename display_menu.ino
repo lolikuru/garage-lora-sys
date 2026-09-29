@@ -2,8 +2,10 @@ void log_menu() { //cursor string
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_6x12_t_symbols);
   const char *debug_list =
+    "Send test temp\n"
+    "Delete json\n"
+    "Print json config\n"
     "Print LoRa CFG\n"
-    "RAW Lora Receve\n"
     "LED MSG\n"
     "Wifi log AP\n"
     "Log size view\n"
@@ -13,14 +15,10 @@ void log_menu() { //cursor string
     "Back to main\n"
     "EXIT";
 
-  static uint8_t debug_selection = 1;
   uint8_t current_selection = u8g2.userInterfaceSelectionList(
                                 "TEST_menu",
-                                debug_selection,
+                                current_selection,
                                 debug_list);
-  if (current_selection > 0) {
-    debug_selection = current_selection;
-  }
   Serial.println(current_selection);
   if ( current_selection == 1 ) {
     uint8_t sure = u8g2.userInterfaceMessage(
@@ -33,12 +31,12 @@ void log_menu() { //cursor string
 
   if ( current_selection == 2 ) {
     deleteFile(LittleFS, config_filename);
-    current_selection = 0;
+    current_selection == 0;
   }
 
   else if ( current_selection == 3 ) {
     readFile(LittleFS, config_filename);
-    current_selection = 0;
+    current_selection == 0;
   }
 
   else if ( current_selection == 4 ) {
@@ -58,17 +56,17 @@ void log_menu() { //cursor string
   }
 
   else if ( current_selection == 5 ) {
-    uint8_t sure = u8g2.userInterfaceMessage(
-       "LED MSG change",
-       "now: ",
-       onOff(led_msg),
-       " Change \n Cancel ");
-    if (sure == 1) {
+   uint8_t sure = u8g2.userInterfaceMessage(
+      "LED MSG change",
+      "now: ",
+      onOff(led_msg),
+      " Change \n Cancel ");
+    if (sure = 1) {
       led_msg = !led_msg;
       saveConfig();
     }
   }
-  
+
   else if ( current_selection == 6 ) {
     uint8_t choice = u8g2.userInterfaceMessage(
                        "Wifi log AP",
@@ -77,7 +75,6 @@ void log_menu() { //cursor string
                        " ok \n cancel \n Retry ");
     if (choice == 1) {
       Wifi_boot = !Wifi_boot;
-      saveConfig();
       if (Wifi_boot) {
         WIFIinit();
       } else {
@@ -90,19 +87,12 @@ void log_menu() { //cursor string
       }
     }
   }
-  
-  else if ( current_selection == 13 ) {
-    uint8_t sure = u8g2.userInterfaceMessage(
-       "RAW Lora Receve",
-       "now: ",
-       onOff(raw_lora_receive),
-       " Change \n Cancel ");
-    if (sure == 1) {
-      raw_lora_receive = !raw_lora_receive;
-      saveConfig();
+
+  else if ( current_selection == 7 ) {
+    const char* logf_on_str = "OFF";
+    if (print_logf_status) {
+      logf_on_str = "ON";
     }
-  }
-  else if ( current_selection == 14 ) {
     uint8_t choice = u8g2.userInterfaceMessage(
                        "Log size view",
                        "now:",
@@ -113,40 +103,40 @@ void log_menu() { //cursor string
       saveConfig();
     }
   }
-  else if ( current_selection == 15 ) {
+  else if ( current_selection == 8 ) {
     u8g2.userInterfaceMessage(
-       "Print log",
-       "from uart port",
-       "",
-       " ok ");
+      "Print log",
+      "from uart port",
+      "",
+      " ok ");
     readFile(LittleFS, "/log.txt");
   }
-  else if ( current_selection == 16 ) {
+  else if ( current_selection == 9 ) {
     u8g2.userInterfaceMessage(
-       "Delete log",
-       "from FS",
-       "",
-       " ok ");
+      "Delete log",
+      "from FS",
+      "",
+      " ok ");
     deleteFile(LittleFS, "/log.txt");
   }
-  else if ( current_selection == 17 ) {
+
+  else if ( current_selection == 10 ) {
     u8g2.userInterfaceMessage(
-       "littlefs List",
-       "from uart port",
-       "",
-       " ok ");
+      "littlefs List",
+      "from uart port",
+      "",
+      " ok ");
     listDir(LittleFS, "/", 0);
   }
-  else if ( current_selection == 18) {
+  else if ( current_selection == 11) {
     //menu_page = 1;
     main_menu();
   }
-  
-  else if ( current_selection == 19 ) {
+
+  else if ( current_selection == 12 ) {
     current_selection = 0;
     u8g2.clearBuffer();
   }
-
 }
 
 void power_menu() {
@@ -181,20 +171,12 @@ void settings_menu() {
                               "Allways on disp\n"
                               "Sleep on time\n" //Просыпаться по UART
                               "Procent battery";
-  static uint8_t settings_selection = 1;
   uint8_t current_selection = u8g2.userInterfaceSelectionList(
-                                "Settings",
-                                settings_selection,
+                                "TEST_menu",
+                                current_selection,
                                 settings_list);
-  if (current_selection > 0) {
-    settings_selection = current_selection;
-  }
   if ( current_selection == 1 ) {
-    const char *cpu_list = "80 MHz\n160 MHz\n240 MHz";
-    uint8_t cpu_sel = u8g2.userInterfaceSelectionList("CPU Frequency", 1, cpu_list);
-    if (cpu_sel == 1) setCpuFrequencyMhz(80);
-    else if (cpu_sel == 2) setCpuFrequencyMhz(160);
-    else if (cpu_sel == 3) setCpuFrequencyMhz(240);
+
   }
   else if ( current_selection == 2 ) {
     uint8_t sure = u8g2.userInterfaceMessage(
