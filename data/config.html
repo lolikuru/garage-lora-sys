@@ -1,54 +1,194 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Configuration</title>
+    <title>Настройки Wi-Fi и Системы</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f4f9; padding: 20px; color: #333; }
-        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { text-align: center; color: #2c3e50; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"], input[type="password"], input[type="number"] { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        .checkbox-group { display: flex; align-items: center; gap: 10px; }
-        .checkbox-group input { width: auto; }
-        button { display: block; width: 100%; padding: 10px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
-        button:hover { background-color: #2980b9; }
+        :root {
+            --bg-color: #121214;
+            --card-bg: #1a1a1e;
+            --text-color: #e1e1e6;
+            --primary: #4caf50;
+            --primary-hover: #43a047;
+            --accent: #2196f3;
+            --border-color: #29292e;
+            --input-bg: #202024;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            max-width: 500px;
+            width: 100%;
+        }
+        header {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        h1 { margin: 0; font-size: 24px; font-weight: 600; }
+
+        .config-form {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+        .form-group {
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group label {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #a8a8b3;
+        }
+        .form-group input[type="text"],
+        .form-group input[type="password"],
+        .form-group input[type="number"] {
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px 12px;
+            color: var(--text-color);
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus {
+            border-color: var(--accent);
+        }
+
+        /* Стилизация чекбокса (Always On Display) */
+        .checkbox-group {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-top: 1px solid var(--border-color);
+            margin-top: 25px;
+        }
+        .checkbox-group label {
+            margin-bottom: 0;
+            cursor: pointer;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #3e3e42;
+            transition: .3s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px; width: 26px;
+            left: 4px; bottom: 4px;
+            background-color: #fff;
+            transition: .3s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(26px); }
+
+        /* Кнопки */
+        .btn-submit {
+            background-color: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            transition: background-color 0.2s;
+        }
+        .btn-submit:hover {
+            background-color: var(--primary-hover);
+        }
+        .btn-back {
+            display: inline-block;
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 14px;
+            margin-top: 20px;
+            text-align: center;
+            width: 100%;
+        }
+        .btn-back:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Config Settings</h1>
-        <form method="POST" action="/save">
-            <input type="hidden" name="file" value="/config.json">
-            <div class="form-group">
-                <label>SSDPName</label>
-                <input type="text" name="SSDPName" value="{{SSDPName}}">
-            </div>
-            <div class="form-group">
-                <label>SSID</label>
-                <input type="text" name="ssidName" value="{{ssidName}}">
-            </div>
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" name="ssidPassword" value="{{ssidPassword}}">
-            </div>
-            <div class="form-group">
-                <label>Timezone</label>
-                <input type="number" name="timezone" value="{{timezone}}">
-            </div>
-            <div class="form-group">
-                <label>Off Display (sec)</label>
-                <input type="number" name="off_display_sec" value="{{off_display_sec}}">
-            </div>
-            <div class="form-group checkbox-group">
-                <input type="checkbox" name="allways_on_disp" {{allways_on_disp}} checked>
-                <label>Always On Display</label>
-            </div>
-            <button type="submit">Save Configuration</button>
-        </form>
-        <button type="button" onclick="window.location.href='/'">Back to Menu</button>
-    </div>
+
+<div class="container">
+    <header>
+        <h1>Настройки системы</h1>
+    </header>
+
+    <!-- Форма отправляет данные методом POST на эндпоинт /save_wifi -->
+    <form class="config-form" method="POST" action="/save_wifi">
+
+        <div class="form-group">
+            <label for="SSDPName">Имя устройства (SSDP)</label>
+            <input type="text" id="SSDPName" name="SSDPName" value="{{SSDPName}}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="ssidName">Имя Wi-Fi сети (SSID)</label>
+            <input type="text" id="ssidName" name="ssidName" value="{{ssidName}}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="ssidPassword">Пароль Wi-Fi</label>
+            <input type="password" id="ssidPassword" name="ssidPassword" value="{{ssidPassword}}">
+        </div>
+
+        <div class="form-group">
+            <label for="timezone">Временная зона (UTC)</label>
+            <input type="number" id="timezone" name="timezone" value="{{timezone}}" min="-12" max="14" required>
+        </div>
+
+        <div class="form-group">
+            <label for="off_display_sec">Таймаут экрана (сек)</label>
+            <input type="number" id="off_display_sec" name="off_display_sec" value="{{off_display_sec}}" min="0" required>
+        </div>
+
+        <div class="form-group checkbox-group">
+            <label for="allways_on_disp">Экран всегда включен</label>
+            <label class="switch">
+                <!-- Шаблон {{allways_on_disp}} подставит слово checked, если опция активна в JSON -->
+                <input type="checkbox" id="allways_on_disp" name="allways_on_disp" {{allways_on_disp}}>
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <button type="submit" class="btn-submit">Сохранить конфигурацию</button>
+    </form>
+
+    <!-- Кнопка возврата в меню автоматически добавится прошивкой ESP,
+         но эту ссылку можно оставить или использовать для навигации -->
+</div>
+
 </body>
 </html>

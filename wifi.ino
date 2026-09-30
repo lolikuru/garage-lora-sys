@@ -58,6 +58,8 @@ void WIFIinit() {
     delay(5000);
     
     FS_Browser_init();
+    Serial.println("Start 9-OTAServer");
+    StartOTA();
   }
 }
 

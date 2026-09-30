@@ -80,6 +80,8 @@
 //#include <base64.h>
 #include <Base64.h>
 
+#include <ArduinoOTA.h>
+
 void initTempSensor() {//метод внутренней температуры
   temp_sensor_config_t temp_sensor = TSENS_CONFIG_DEFAULT();
   temp_sensor.dac_offset = TSENS_DAC_L2;  // TSENS_DAC_L2 is default; L4(-40°C ~ 20°C), L2(-10°C ~ 80°C), L1(20°C ~ 100°C), L0(50°C ~ 125°C)
