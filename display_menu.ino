@@ -129,8 +129,8 @@ void log_menu() { //cursor string
     listDir(LittleFS, "/", 0);
   }
   else if ( current_selection == 11) {
-    //menu_page = 1;
-    main_menu();
+    menu_page--;
+    if (menu_page < 0) menu_page = 0;
   }
 
   else if ( current_selection == 12 ) {

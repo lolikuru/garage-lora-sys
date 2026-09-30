@@ -35,21 +35,42 @@ void listFiles(String path, String &html) {
 void FS_Browser_init() {
   // Route to display the main menu
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    String html = "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Garage LoRa System</title><style>body { font-family: Arial, sans-serif; background-color: #f4f4f9; padding: 20px; color: #333; text-align: center; }.container { max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }h1 { color: #2c3e50; }.menu-item { margin: 20px 0; }.btn { display: inline-block; padding: 15px 30px; background-color: #3498db; color: white; border: none; border-radius: 4px; text-decoration: none; font-size: 18px; transition: background-color 0.3s; }.btn:hover { background-color: #29809b; }.btn-back { background-color: #95a5a6; margin-top: 20px; }</style></head><body><div class='container'><h1>Garage LoRa System</h1><div class='menu-item'><a href='/wifi' class='btn'>Wifi Settings</a></div><div class='menu-item'><a href='/load' class='btn'>Load Management</a></div><div class='menu-item'><a href='/files' class='btn'>File Browser</a></div></div></body></html>";
-    request->send(200, "text/html", html);
+    if (LittleFS.exists("/index.html")) {
+      File file = LittleFS.open("/index.html", "r");
+      String html;
+      if (file) {
+        html = file.readString();
+        file.close();
+        request->send(200, "text/html", html);
+      } else {
+        request->send(500, "text/plain", "Failed to open index.html");
+      }
+    } else {
+      request->send(404, "text/plain", "index.html not found.");
+    }
   });
 
   // Route to display the file browser
   server.on("/files", HTTP_GET, [](AsyncWebServerRequest *request) {
-    String html = "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>File Browser</title><style>body { font-family: Arial, sans-serif; background-color: #f4f4f9; padding: 20px; color: #333; } .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); } h1 { color: #2c3e50; } .btn { display: inline-block; padding: 10px 20px; background-color: #3498db; color: white; border: none; border-radius: 4px; text-decoration: none; } .btn-back { background-color: #95a5a6; margin-top: 20px; }</style></head><body><div class='container'><h1>File Browser</h1><ul class='content'>";
-    listFiles("/", html);
-    html += "</ul><a href='/' class='btn-back'>Back to Menu</a></div></body></html>";
-    request->send(200, "text/html", html);
+    if (LittleFS.exists("/files.html")) {
+      File file = LittleFS.open("/files.html", "r");
+      String html;
+      if (file) {
+        html = file.readString();
+        file.close();
+        listFiles("/", html);
+        request->send(200, "text/html", html);
+      } else {
+        request->send(500, "text/plain", "Failed to open files.html");
+      }
+    } else {
+      request->send(404, "text/plain", "files.html not found.");
+    }
   });
 
   // Route to display the wifi configuration
   server.on("/wifi", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (LittleFS.exists("/config.json")) {
+    if (LittleFS.exists("/config.html")) {
       File file = LittleFS.open("/config.html", "r");
       if (file) {
         String content = file.readString();
@@ -113,6 +134,8 @@ void FS_Browser_init() {
       File confFile = LittleFS.open("/config.json", "r");
       deserializeJson(doc, confFile);
       confFile.close();
+    } else {
+      doc = JsonDocument();
     }
 
     JsonArray clients = doc.createNestedArray("Client");
@@ -160,16 +183,16 @@ void FS_Browser_init() {
   server.on("/load", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (LittleFS.exists("/load.html")) {
       File file = LittleFS.open("/load.html", "r");
+      String content;
       if (file) {
-        String content = file.readString();
+        content = file.readString();
         file.close();
-        content.replace("</body>", "</body><br><a href='/load' class='btn-back'>Back to Menu</a>");
         request->send(200, "text/html", content);
       } else {
         request->send(500, "text/plain", "Failed to open load.html");
       }
     } else {
-      request->send(404, "text/plain", "Load page not found.");
+      request->send(404, "text/plain", "load.html not found.");
     }
   });
 

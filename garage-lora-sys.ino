@@ -126,6 +126,7 @@ bool raw_lora_receive = false;
 bool send_dht = false;
 //bool allways_on_disp = false;
 int current_menu = 0; // 0: Main, 1: Settings, 2: Log, 3: Power
+int menu_page = 0; // уровень меню (начинается с 0)
 int prev_menu = -1;
 //bool procent_battery = false;
 
