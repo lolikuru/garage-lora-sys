@@ -1,1 +1,29 @@
-{"SSDPName":"GarageClient","ssidAPName":"ESP32LogServer","ssidAPPassword":"12345678","ssidName":"Saya5G","ssidPassword":"markiz18","Load0":["Load1",0],"Load1":["Load2",0],"Load2":["Load3",0],"Load3":["Load4",0],"Load4":["Load5",0],"Load5":["Load6",0],"Load6":["Load7",0],"Load7":["Load8",0],"Client1":["GarageClient",4,"pool.ntp.org",60,true,true,true,true,true,160]}
+{
+  "SSDPName": "GarageClient",
+  "ssidAPName": "ESP32LogServer",
+  "ssidAPPassword": "12345678",
+  "ssidName": "Saya5G",
+  "ssidPassword": "markiz18",
+  "loads": [
+    {"name": "Load1", "pin": 0},
+    {"name": "Load2", "pin": 0},
+    {"name": "Load3", "pin": 0},
+    {"name": "Load4", "pin": 0},
+    {"name": "Load5", "pin": 0},
+    {"name": "Load6", "pin": 0},
+    {"name": "Load7", "pin": 0},
+    {"name": "Load8", "pin": 0}
+  ],
+  "Client1": {
+    "name": "GarageClient",
+    "timezone": 4,
+    "ntp": "pool.ntp.org",
+    "off_display_sec": 60,
+    "allways_on_disp": true,
+    "led_msg": true,
+    "print_logf_status": true,
+    "procent_battery": true,
+    "wifi_boot": true,
+    "frequency": 160
+  }
+}

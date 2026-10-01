@@ -23,6 +23,42 @@
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 30px; border-bottom: 1px solid #29292e; padding-bottom: 15px;
         }
+        .top-header {
+            position: relative;
+            width: 100%;
+            text-align: center;
+            padding: 15px 10px;
+            background-color: #1e1e24; /* Цвет подложки под ваш дизайн */
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Контейнер часов */
+        .clock-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 8px;
+            }
+
+        /* Время */
+        #live-time {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: #00e676; /* Приятный неоново-зеленый цвет */
+            font-variant-numeric: tabular-nums; /* Защита от дрожания ширины цифр */
+        }
+
+            /* Дата (под временем) */
+        #live-date {
+            font-size: 0.9rem;
+            color: #a0a0a0;
+            margin-top: 2px;
+        }
+
         h1 { margin: 0; font-size: 24px; font-weight: 600; }
         .nav-links a { color: var(--accent); text-decoration: none; margin-right: 15px; font-size: 14px; }
         .nav-links a:hover { text-decoration: underline; }
@@ -72,6 +108,10 @@
                 <a href="/files">Файловый менеджер</a>
                 <a href="/wifi">Настройки Wi-Fi</a>
             </div>
+        </div>
+        <div class="clock-container">
+            <div id="live-time">--:--:--</div>
+            <div id="live-date">--.--.----</div>
         </div>
         <div class="summary">Активно нагрузок: <span id="activeCount">0</span>/8</div>
     </header>
@@ -216,6 +256,66 @@
             logConsole.scrollTop = logConsole.scrollHeight;
         }
     }
+let serverEpochMs = null;
+
+  async function syncServerTime() {
+    try {
+      const response = await fetch('/api/time');
+      if (!response.ok) throw new Error('Network response was not ok');
+      const timeStr = (await response.text()).trim();
+
+      // Ожидаемый формат от ESP: "YYYY-MM-DDTHH:MM:SS"
+      const [datePart, timePart] = timeStr.split('T');
+      if (datePart && timePart) {
+        const [year, month, day] = datePart.split('-').map(Number);
+        const [hours, minutes, seconds] = timePart.split(':').map(Number);
+
+        // Используем Date.UTC, чтобы зафиксировать точные цифры с ESP без наложения таймзоны браузера
+        serverEpochMs = Date.UTC(year, month - 1, day, hours, minutes, seconds);
+        updateDisplay();
+      }
+    } catch (e) {
+      console.warn("Синхронизация времени с ESP не удалась:", e);
+    }
+  }
+
+  function pad(num) {
+    return num.toString().padStart(2, '0');
+  }
+
+  function updateDisplay() {
+    if (serverEpochMs === null) return;
+
+    // Считываем значения в режиме UTC, чтобы браузер ничего не сдвигал
+    const d = new Date(serverEpochMs);
+    const hours = pad(d.getUTCHours());
+    const minutes = pad(d.getUTCMinutes());
+    const seconds = pad(d.getUTCSeconds());
+    const day = pad(d.getUTCDate());
+    const month = pad(d.getUTCMonth() + 1);
+    const year = d.getUTCFullYear();
+
+    const timeEl = document.getElementById('live-time');
+    const dateEl = document.getElementById('live-date');
+
+    if (timeEl) timeEl.textContent = `${hours}:${minutes}:${seconds}`;
+    if (dateEl) dateEl.textContent = `${day}.${month}.${year}`;
+  }
+
+  function tick() {
+    if (serverEpochMs !== null) {
+      serverEpochMs += 1000;
+      updateDisplay();
+    }
+  }
+
+  // Запуск первой синхронизации и старт локального таймера
+  syncServerTime().then(() => {
+    setInterval(tick, 1000);
+  });
+
+  // Фоновая синхронизация с ESP каждые 5 минут для устранения дрейфа генератора
+  setInterval(syncServerTime, 300000);
 </script>
 </body>
 </html>

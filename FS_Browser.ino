@@ -2,11 +2,11 @@
 void listFiles(String path, String &html) {
   File root = LittleFS.open(path, "r");
   if (!root) {
-    Serial.println("Failed to open directory");
+    Serial.println(F("Failed to open directory"));
     return;
   }
   if (!root.isDirectory()) {
-    Serial.println("Specified path is not a directory");
+    Serial.println(F("Specified path is not a directory"));
     root.close();
     return;
   }
@@ -74,7 +74,7 @@ void FS_Browser_init() {
   server.on("/set_state", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (request->hasArg("id") && request->hasArg("state")) {
       int id = request->arg("id").toInt();
-      int state = request->arg("state").toInt(); // 1 или 0
+      int state = request->arg("state").toInt();
 
       JsonDocument doc;
       if (LittleFS.exists("/config.json")) {
@@ -83,30 +83,15 @@ void FS_Browser_init() {
         confFile.close();
       }
 
-      String loadKey = "Load" + String(id);
-
-      // Жесткая и безопасная перезапись статуса в массиве ArduinoJson
-      if (doc.containsKey(loadKey) && doc[loadKey].is<JsonArray>()) {
-        doc[loadKey][1] = state; // Индекс 1 — это статус (0 или 1)
-      } else {
-        // Если ключа почему-то не было, создаем его заново правильно
-        JsonArray arr = doc[loadKey].to<JsonArray>();
-        arr.add("Load" + String(id + 1));
-        arr.add(state);
+      JsonArray loadsArray = doc["loads"].as<JsonArray>();
+      if (!loadsArray.isNull() && id >= 0 && id < loadsArray.size()) {
+        loadsArray[id]["pin"] = state;
       }
 
-      // =================================================================
-      // ЗДЕСЬ ВСТАВЬТЕ ВАШ КOД ОТПРАВКИ КОМАНДЫ ЧЕРЕЗ LORA МОДУЛЬ!
-      // Например:
-      // sendLoRaCommand(id, state);
-      // или: LoRa.print("LOAD:" + String(id) + " STATE:" + String(state));
-      // =================================================================
       Pinout[id] = state;
-      sendLoraCommand(String("L") + String(id + 1) + String(state));
-
+      sendLoraCommand(String("L") + String(id) + String(state));
       Serial.printf("LoRa Command Sent: Load ID %d -> State %d\n", id, state);
 
-      // Сохраняем обновленный правильный JSON в память LittleFS
       File confFile = LittleFS.open("/config.json", "w");
       if (confFile) {
         serializeJson(doc, confFile);
@@ -133,13 +118,9 @@ void FS_Browser_init() {
         confFile.close();
       }
 
-      String loadKey = "Load" + String(id);
-      if (doc.containsKey(loadKey) && doc[loadKey].is<JsonArray>()) {
-        doc[loadKey][0] = newName; // Индекс 0 — это строковое имя нагрузки
-      } else {
-        JsonArray arr = doc[loadKey].to<JsonArray>();
-        arr.add(newName);
-        arr.add(0);
+      JsonArray loadsArray = doc["loads"].as<JsonArray>();
+      if (!loadsArray.isNull() && id >= 0 && id < loadsArray.size()) {
+        loadsArray[id]["name"] = newName;
       }
 
       File confFile = LittleFS.open("/config.json", "w");
@@ -155,6 +136,17 @@ void FS_Browser_init() {
     }
   });
 
+  // ЭНДПОИНТ 4: Отдача времени по запросу JS-часов
+  server.on("/api/time", HTTP_GET, [](AsyncWebServerRequest *request){
+    time_t now = time(nullptr);
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo);
+
+    char buffer[32];
+    strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%S", &timeinfo);
+    request->send(200, "text/plain", buffer);
+  });
+
   // Просмотр Wi-Fi конфигурации
   server.on("/wifi", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (LittleFS.exists("/config.html")) {
@@ -162,21 +154,29 @@ void FS_Browser_init() {
       if (file) {
         String content = file.readString();
         file.close();
+
         JsonDocument doc;
         if (LittleFS.exists("/config.json")) {
           File confFile = LittleFS.open("/config.json", "r");
           deserializeJson(doc, confFile);
           confFile.close();
         }
+
         content.replace("{{SSDPName}}", doc["SSDPName"].as<String>());
         content.replace("{{ssidName}}", doc["ssidName"].as<String>());
         content.replace("{{ssidPassword}}", doc["ssidPassword"].as<String>());
 
         String clientKey = "Client" + String(client_id);
-        if (doc.containsKey(clientKey) && doc[clientKey].is<JsonArray>()) {
-          content.replace("{{timezone}}", String(doc[clientKey][1].as<int>()));
-          content.replace("{{off_display_sec}}", String(doc[clientKey][3].as<int>()));
-          content.replace("{{allways_on_disp}}", doc[clientKey][4].as<bool>() ? "checked" : "");
+        JsonObject clientObj = doc[clientKey].as<JsonObject>();
+
+        if (!clientObj.isNull()) {
+          content.replace("{{timezone}}", String(clientObj["timezone"].as<int>()));
+          content.replace("{{off_display_sec}}", String(clientObj["off_display_sec"].as<int>()));
+          content.replace("{{allways_on_disp}}", clientObj["allways_on_disp"].as<bool>() ? "checked" : "");
+        } else {
+          content.replace("{{timezone}}", "0");
+          content.replace("{{off_display_sec}}", "60");
+          content.replace("{{allways_on_disp}}", "");
         }
         request->send(200, "text/html", content);
       } else { request->send(500, "text/plain", "Failed to open config.html"); }
@@ -191,25 +191,37 @@ void FS_Browser_init() {
       deserializeJson(doc, confFile);
       confFile.close();
     }
+
     if (request->hasArg("SSDPName")) doc["SSDPName"] = request->arg("SSDPName");
     if (request->hasArg("ssidName")) doc["ssidName"] = request->arg("ssidName");
     if (request->hasArg("ssidPassword")) doc["ssidPassword"] = request->arg("ssidPassword");
 
     String clientKey = "Client" + String(client_id);
-    if (doc.containsKey(clientKey) && doc[clientKey].is<JsonArray>()) {
-      if (request->hasArg("timezone")) doc[clientKey][1] = request->arg("timezone").toInt();
-      if (request->hasArg("off_display_sec")) doc[clientKey][3] = request->arg("off_display_sec").toInt();
-      doc[clientKey][4] = (request->arg("allways_on_disp") == "on");
+    JsonObject clientObj = doc[clientKey].as<JsonObject>();
+
+    if (clientObj.isNull()) {
+      clientObj = doc[clientKey].to<JsonObject>();
     }
+
+    if (request->hasArg("timezone")) clientObj["timezone"] = request->arg("timezone").toInt();
+    if (request->hasArg("off_display_sec")) clientObj["off_display_sec"] = request->arg("off_display_sec").toInt();
+    clientObj["allways_on_disp"] = (request->arg("allways_on_disp") == "on");
+
     File confFile = LittleFS.open("/config.json", "w");
     if (confFile) {
       serializeJson(doc, confFile);
       confFile.close();
+
+      // Синхронизируем внутреннее состояние переменных ESP
+      timezone = clientObj["timezone"].as<int>();
+      off_display_sec = clientObj["off_display_sec"].as<int>();
+      allways_on_disp = clientObj["allways_on_disp"].as<bool>();
+
       request->send(200, "text/plain", "Configuration saved");
     } else { request->send(500, "text/plain", "Failed to save configuration"); }
   });
 
- // Просмотр списка файлов в LittleFS с подстановкой через маркер
+  // Просмотр списка файлов в LittleFS
   server.on("/files", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (LittleFS.exists("/files.html")) {
       File file = LittleFS.open("/files.html", "r");

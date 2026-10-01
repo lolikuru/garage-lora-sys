@@ -1,133 +1,129 @@
-bool loadConfig() {
-  // Открываем файл для чтения
-  File configFile = LittleFS.open(config_filename, "r");
-  if (!configFile) {
-    // если файл не найден
-    Serial.println("Failed to open config file");
-    //  Создаем файл запиcав в него даные по умолчанию
-    saveConfig();
-    //configFile.close();
-    return false;
-  } 
-  // Проверяем размер файла, будем использовать файл размером меньше 4096 байта
-  size_t size = configFile.size();
-  if (size > 4096) {
-    Serial.println("Config file size is too large");
-    configFile.close();
-    return false;
-  }
-  // загружаем файл конфигурации в глобальную переменную
-  // Резервируем памяь для json обекта буфер может рости по мере необходимти предпочтительно для ESP8266
-  JsonDocument docConfig;
-  DeserializationError error = deserializeJson(docConfig, configFile);//десериализуем конфиг
-  if (error)
-    Serial.println(F("Failed to read file, using default configuration"));
-
-  if (docConfig["SSDPName"].as<String>() != "null"){
-    SSDPName = docConfig["SSDPName"].as<String>();
-    ssidAPName = docConfig["ssidAPName"].as<String>(); // Так получаем строку
-    ssidAPPassword = docConfig["ssidAPPassword"].as<String>();
-    ssidName = docConfig["ssidName"].as<String>();
-    ssidPassword = docConfig["ssidPassword"].as<String>();
-    for (byte i = 0; i < 8; i++)
-    { //так получаем число и строку в массиве
-      Pinout_name[i] = docConfig["Load" + String(i)][0].as<String>();
-      Pinout[i] = docConfig["Load" + String(i)][1];
-    }
-    SSDPName = docConfig["Client" + String(client_id)][0].as<String>();
-    timezone = docConfig["Client" + String(client_id)][1];
-    ntp = docConfig["Client" + String(client_id)][2].as<String>();
-    off_display_sec = docConfig["Client" + String(client_id)][3];
-    allways_on_disp = docConfig["Client" + String(client_id)][4];
-    led_msg = docConfig["Client" + String(client_id)][5];
-    print_logf_status = docConfig["Client" + String(client_id)][6];
-    procent_battery = docConfig["Client" + String(client_id)][7];
-    if (!docConfig["Client" + String(client_id)][8].isNull()) {
-      Wifi_boot = docConfig["Client" + String(client_id)][8];
-    }
-    if (!docConfig["Client" + String(client_id)][9].isNull()) {
-      Frequency = docConfig["Client" + String(client_id)][9];
-    }
-    strncpy(ntpServer, ntp.c_str(), sizeof(ntpServer) - 1);
-
-    ntpServer[sizeof(ntpServer) - 1] = '\0';
-  } 
-  configFile.close();
-  return true;
-}
-
-// Запись данных в файл config.json
 bool saveConfig() {
-  // Резервируем память для json обекта буфер может рости по мере необходимти предпочтительно для ESP8266
   JsonDocument docConfig;
-  deserializeJson(docConfig, jsonConfig);
-  
-  //  вызовите парсер JSON через экземпляр docConfig
-  //JsonObject& json = docConfig.parseObject(jsonConfig);
-  
-  // Заполняем поля json
+
+  // Сетевые настройки
   docConfig["SSDPName"] = SSDPName;
   docConfig["ssidAPName"] = ssidAPName;
   docConfig["ssidAPPassword"] = ssidAPPassword;
   docConfig["ssidName"] = ssidName;
   docConfig["ssidPassword"] = ssidPassword;
 
+  // Массив нагрузок (вместо разрозненных Load0, Load1 ...)
+  JsonArray loadsArray = docConfig["loads"].to<JsonArray>();
   for (byte i = 0; i < 8; i++) {
-    JsonArray loads = docConfig["Load" + String(i)].to<JsonArray>();
-    loads.add(Pinout_name[i]);
-    loads.add(Pinout[i]);
+    JsonObject item = loadsArray.add<JsonObject>();
+    item["name"] = Pinout_name[i];
+    item["pin"] = Pinout[i];
   }
 
-  JsonArray SelfSettings = docConfig["Client" + String(client_id)].to<JsonArray>();
-    SelfSettings.add(SSDPName); //0
-    SelfSettings.add(timezone); //1
-    SelfSettings.add(ntp); //2
-    SelfSettings.add(off_display_sec); //3
-    SelfSettings.add(allways_on_disp); //4
-    SelfSettings.add(led_msg);//5
-    SelfSettings.add(print_logf_status);//6
-    SelfSettings.add(procent_battery);//7
-    SelfSettings.add(Wifi_boot);//8
-    SelfSettings.add(Frequency); //9
+  // Настройки клиента в виде именованного объекта
+  char clientKey[16];
+  snprintf(clientKey, sizeof(clientKey), "Client%d", client_id);
 
-  
-  serializeJson(docConfig, jsonConfig);
-  // Открываем файл для записи
+  JsonObject clientObj = docConfig[clientKey].to<JsonObject>();
+  clientObj["name"]              = SSDPName;
+  clientObj["timezone"]          = timezone;
+  clientObj["ntp"]               = ntp;
+  clientObj["off_display_sec"]   = off_display_sec;
+  clientObj["allways_on_disp"]   = allways_on_disp;
+  clientObj["led_msg"]           = led_msg;
+  clientObj["print_logf_status"] = print_logf_status;
+  clientObj["procent_battery"]   = procent_battery;
+  clientObj["wifi_boot"]         = Wifi_boot;
+  clientObj["frequency"]         = Frequency;
+
+  // Запись в файл
   File configFile = LittleFS.open(config_filename, "w");
   if (!configFile) {
-    Serial.println("Failed to open config file for writing");
-    configFile.close();
+    Serial.println(F("Failed to open config file for writing"));
     return false;
   }
-  // Записываем строку json в файл
-  serializeJson(docConfig, configFile);
+
+  size_t bytesWritten = serializeJson(docConfig, configFile);
   configFile.close();
+
+  if (bytesWritten == 0) {
+    Serial.println(F("Failed to write data to file"));
+    return false;
+  }
+
   readFile(LittleFS, config_filename);
   return true;
 }
 
-
-// Prints the content of a file to the Serial
-void printFile(const char* filename) {
-  // Open file for reading
-  File file = LittleFS.open(filename);
-  if (!file) {
-    Serial.println(F("Failed to read file"));
-    return;
+// Чтение данных из файла config.json
+bool loadConfig() {
+  File configFile = LittleFS.open(config_filename, "r");
+  if (!configFile) {
+    Serial.println(F("Failed to open config file, saving defaults..."));
+    saveConfig();
+    return false;
   }
 
-  // Extract each characters by one by one
-  while (file.available()) {
-    Serial.print((char)file.read());
+  if (configFile.size() > 4096) {
+    Serial.println(F("Config file size is too large"));
+    configFile.close();
+    return false;
   }
-  Serial.println();
 
-  // Close the file
-  file.close();
+  JsonDocument docConfig;
+  DeserializationError error = deserializeJson(docConfig, configFile);
+  configFile.close();
+
+  if (error) {
+    Serial.println(F("Failed to parse JSON, keeping defaults"));
+    return false;
+  }
+
+  // Считываем базовые настройки
+  if (!docConfig["SSDPName"].isNull()) {
+    SSDPName = docConfig["SSDPName"].as<String>();
+  }
+  if (!docConfig["ssidAPName"].isNull()) {
+    ssidAPName = docConfig["ssidAPName"].as<String>();
+  }
+  if (!docConfig["ssidAPPassword"].isNull()) {
+    ssidAPPassword = docConfig["ssidAPPassword"].as<String>();
+  }
+  if (!docConfig["ssidName"].isNull()) {
+    ssidName = docConfig["ssidName"].as<String>();
+  }
+  if (!docConfig["ssidPassword"].isNull()) {
+    ssidPassword = docConfig["ssidPassword"].as<String>();
+  }
+
+  // Считываем массив нагрузок
+  JsonArray loadsArray = docConfig["loads"].as<JsonArray>();
+  if (!loadsArray.isNull()) {
+    byte index = 0;
+    for (JsonObject load : loadsArray) {
+      if (index >= 8) break;
+      Pinout_name[index] = load["name"].as<String>();
+      Pinout[index]      = load["pin"].as<int>();
+      index++;
+    }
+  }
+
+  // Считываем настройки текущего клиента
+  char clientKey[16];
+  snprintf(clientKey, sizeof(clientKey), "Client%d", client_id);
+  JsonObject clientObj = docConfig[clientKey].as<JsonObject>();
+
+  if (!clientObj.isNull()) {
+    if (!clientObj["name"].isNull())              SSDPName = clientObj["name"].as<String>();
+    if (!clientObj["timezone"].isNull())          timezone = clientObj["timezone"].as<int>();
+    if (!clientObj["ntp"].isNull())               ntp = clientObj["ntp"].as<String>();
+    if (!clientObj["off_display_sec"].isNull())   off_display_sec = clientObj["off_display_sec"].as<int>();
+    if (!clientObj["allways_on_disp"].isNull())   allways_on_disp = clientObj["allways_on_disp"].as<bool>();
+    if (!clientObj["led_msg"].isNull())           led_msg = clientObj["led_msg"].as<bool>();
+    if (!clientObj["print_logf_status"].isNull()) print_logf_status = clientObj["print_logf_status"].as<bool>();
+    if (!clientObj["procent_battery"].isNull())   procent_battery = clientObj["procent_battery"].as<bool>();
+    if (!clientObj["wifi_boot"].isNull())         Wifi_boot = clientObj["wifi_boot"].as<bool>();
+    if (!clientObj["frequency"].isNull())         Frequency = clientObj["frequency"].as<int>();
+
+    strncpy(ntpServer, ntp.c_str(), sizeof(ntpServer) - 1);
+    ntpServer[sizeof(ntpServer) - 1] = '\0';
+  }
+
+  return true;
 }
-
-//void test_json(const char* filename) {
-//  Serial.println(F("Loading configuration..."));
-//  loadConfig();
-//  printFile(config_filename);
-//}
