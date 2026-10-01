@@ -20,13 +20,21 @@ void listFiles(String path, String &html) {
       else if (path == "/") fullPath = "/" + name;
       else fullPath = path + "/" + name;
     }
+
     if (file.isDirectory()) {
       html += "<li><strong>" + name + "/</strong></li>";
       listFiles(fullPath, html);
     } else {
-      html += "<li><a href='/download?file=" + fullPath + "'>" + name + "</a> <span style='color:#666; font-size:13px;'>(" + String(file.size()) + " bytes)</span>";
-      html += "<div class='actions'><a href='/download?file=" + fullPath + "' class='btn-download'>Скачать</a>";
-      html += "<a href='/edit?file=" + fullPath + "' class='btn-edit'>Редактировать</a></div></li>";
+      html += "<li>";
+      html += "  <div class='file-info'>";
+      html += "    <a href='/download?file=" + fullPath + "'>" + name + "</a>";
+      html += "    <span style='color:#666; font-size:13px;'>(" + String(file.size()) + " bytes)</span>";
+      html += "  </div>";
+      html += "  <div class='actions'>";
+      html += "    <a href='/download?file=" + fullPath + "' class='btn-download'>Скачать</a>";
+      html += "    <a href='/edit?file=" + fullPath + "' class='btn-edit'>Редактировать</a>";
+      html += "  </div>";
+      html += "</li>";
     }
     file = root.openNextFile();
   }
@@ -93,6 +101,9 @@ void FS_Browser_init() {
       // sendLoRaCommand(id, state);
       // или: LoRa.print("LOAD:" + String(id) + " STATE:" + String(state));
       // =================================================================
+      Pinout[id] = state;
+      sendLoraCommand(String("L") + String(id + 1) + String(state));
+
       Serial.printf("LoRa Command Sent: Load ID %d -> State %d\n", id, state);
 
       // Сохраняем обновленный правильный JSON в память LittleFS
@@ -198,13 +209,23 @@ void FS_Browser_init() {
     } else { request->send(500, "text/plain", "Failed to save configuration"); }
   });
 
-  // Роуты Файлового менеджера
+ // Просмотр списка файлов в LittleFS с подстановкой через маркер
   server.on("/files", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (LittleFS.exists("/files.html")) {
       File file = LittleFS.open("/files.html", "r");
-      if (file) { String html = file.readString(); file.close(); listFiles("/", html); request->send(200, "text/html", html); }
-      else { request->send(500, "text/plain", "Failed to open files.html"); }
-    } else { request->send(404, "text/plain", "files.html not found."); }
+      if (file) {
+        String content = file.readString();
+        file.close();
+        String fileRows = "";
+        listFiles("/", fileRows);
+        content.replace("<!-- %FILE_LIST% -->", fileRows);
+        request->send(200, "text/html", content);
+      } else {
+        request->send(500, "text/plain", "Failed to open files.html");
+      }
+    } else {
+      request->send(404, "text/plain", "files.html not found.");
+    }
   });
 
   server.on("/download", HTTP_GET, [](AsyncWebServerRequest *request) {
