@@ -65,7 +65,7 @@ void main_view() {
 void main_menu() {
   //cursor string
   u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_6x12_t_symbols);
+  u8g2.setFont(u8g2_font_6x12_t_cyrillic);
   const char *main_list =
     "ON/OFF 8ch switch\n"
     "Hub settings\n"

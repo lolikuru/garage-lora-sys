@@ -121,6 +121,7 @@ void FS_Browser_init() {
       JsonArray loadsArray = doc["loads"].as<JsonArray>();
       if (!loadsArray.isNull() && id >= 0 && id < loadsArray.size()) {
         loadsArray[id]["name"] = newName;
+        Pinout_name[id] = newName;
       }
 
       File confFile = LittleFS.open("/config.json", "w");

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Настройки системы — Cron</title>
+    <style>
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+          background-color: #121212;
+          color: #e0e0e0;
+          padding: 16px;
+        }
+
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+        }
+
+        header {
+          border-bottom: 1px solid #333;
+          padding-bottom: 12px;
+          margin-bottom: 16px;
+        }
+
+        header h1 {
+          font-size: 1.25rem;
+          font-weight: 600;
+          margin-bottom: 8px;
+          color: #fff;
+        }
+
+        nav a {
+          color: #4da3ff;
+          margin-right: 12px;
+          text-decoration: none;
+          font-size: 0.95em;
+        }
+
+        nav a:hover {
+          text-decoration: underline;
+        }
+
+        .card {
+          background: #1e1e1e;
+          border-radius: 8px;
+          padding: 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          border: 1px solid #2a2a2a;
+          margin-bottom: 16px;
+        }
+
+        .field {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        label {
+          font-size: 0.85em;
+          color: #aaa;
+        }
+
+        input[type="text"], select {
+          width: 100%;
+          height: 38px;
+          padding: 8px 12px;
+          background: #121212;
+          border: 1px solid #333;
+          border-radius: 6px;
+          color: #e0e0e0;
+          font-size: 0.95em;
+          outline: none;
+          transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus, select:focus {
+          border-color: #4da3ff;
+        }
+
+        .loads-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+          margin: 0;
+        }
+
+        .cron-result-card {
+          background: #121212;
+          border: 1px solid #2a2a2a;
+          border-radius: 6px;
+          padding: 12px;
+          text-align: center;
+        }
+
+        .cron-code {
+          font-family: monospace;
+          font-size: 1.25em;
+          font-weight: bold;
+          letter-spacing: 2px;
+          color: #4da3ff;
+          margin-bottom: 4px;
+        }
+
+        .cron-desc {
+          font-size: 0.85em;
+          color: #aaa;
+        }
+
+        .btn-toggle {
+          padding: 12px;
+          border: none;
+          border-radius: 6px;
+          font-weight: bold;
+          cursor: pointer;
+          background: #333;
+          color: #fff;
+          transition: 0.2s;
+          font-size: 0.95em;
+        }
+
+        .btn-toggle:hover {
+          background: #3d3d3d;
+        }
+
+        .btn-toggle.active {
+          background: #28a745;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Настройки системы</h1>
+        <nav>
+            <a href="#wifi">Wi-Fi</a>
+            <a href="#system">Система</a>
+            <a href="#cron">Cron расписание</a>
+        </nav>
+    </header>
+
+    <div class="card">
+        <div class="field">
+            <label for="preset">Шаблон запуска</label>
+            <select id="preset" onchange="applyPreset()">
+                <option value="* * * * *">Каждую минуту</option>
+                <option value="*/5 * * * *">Каждые 5 минут</option>
+                <option value="0 * * * *">Каждый час</option>
+                <option value="0 0 * * *">Раз в день (00:00)</option>
+                <option value="0 12 * * *">Раз в день (12:00)</option>
+                <option value="0 0 * * 1-5">По будням (00:00)</option>
+                <option value="0 0 1 * *">1-го числа каждого месяца</option>
+                <option value="custom">Пользовательский...</option>
+            </select>
+        </div>
+
+        <div class="loads-grid">
+            <div class="field">
+                <label for="m">Минуты (0 - 59)</label>
+                <input type="text" id="m" value="*" oninput="buildCron()">
+            </div>
+            <div class="field">
+                <label for="h">Часы (0 - 23)</label>
+                <input type="text" id="h" value="*" oninput="buildCron()">
+            </div>
+            <div class="field">
+                <label for="dom">День месяца (1 - 31)</label>
+                <input type="text" id="dom" value="*" oninput="buildCron()">
+            </div>
+            <div class="field">
+                <label for="mon">Месяц (1 - 12)</label>
+                <input type="text" id="mon" value="*" oninput="buildCron()">
+            </div>
+        </div>
+
+        <div class="field">
+            <label for="dow">День недели (0 - 6, где 0 = Вс)</label>
+            <input type="text" id="dow" value="*" oninput="buildCron()">
+        </div>
+
+        <div class="cron-result-card">
+            <div class="cron-code" id="cron_output">* * * * *</div>
+            <div class="cron-desc" id="cron_text">Запуск каждую минуту</div>
+        </div>
+
+        <button type="button" class="btn-toggle" id="btn_save" onclick="saveConfig()">Сохранить конфигурацию</button>
+    </div>
+</div>
+
+<script>
+    function buildCron() {
+      const m = document.getElementById('m').value.trim() || '*';
+      const h = document.getElementById('h').value.trim() || '*';
+      const dom = document.getElementById('dom').value.trim() || '*';
+      const mon = document.getElementById('mon').value.trim() || '*';
+      const dow = document.getElementById('dow').value.trim() || '*';
+
+      const expr = `${m} ${h} ${dom} ${mon} ${dow}`;
+      document.getElementById('cron_output').innerText = expr;
+
+      let desc = 'Пользовательское расписание';
+      if (expr === '* * * * *') desc = 'Запуск каждую минуту';
+      else if (expr === '*/5 * * * *') desc = 'Запуск каждые 5 минут';
+      else if (expr === '0 * * * *') desc = 'В начале каждого часа';
+      else if (expr === '0 0 * * *') desc = 'Каждый день в 00:00';
+      else if (expr === '0 12 * * *') desc = 'Каждый день в 12:00';
+      else if (expr === '0 0 * * 1-5') desc = 'По будням в 00:00';
+      else if (expr === '0 0 1 * *') desc = '1-го числа каждого месяца в 00:00';
+
+      document.getElementById('cron_text').innerText = desc;
+    }
+
+    function applyPreset() {
+      const val = document.getElementById('preset').value;
+      if (val === 'custom') return;
+
+      const p = val.split(' ');
+      document.getElementById('m').value = p[0];
+      document.getElementById('h').value = p[1];
+      document.getElementById('dom').value = p[2];
+      document.getElementById('mon').value = p[3];
+      document.getElementById('dow').value = p[4];
+
+      buildCron();
+    }
+
+    function saveConfig() {
+      const cron = document.getElementById('cron_output').innerText;
+      const btn = document.getElementById('btn_save');
+
+      navigator.clipboard.writeText(cron).then(() => {
+        btn.classList.add('active');
+        btn.innerText = 'Сохранено!';
+        setTimeout(() => {
+          btn.classList.remove('active');
+          btn.innerText = 'Сохранить конфигурацию';
+        }, 1500);
+      });
+    }
+</script>
+
+</body>
+</html>
