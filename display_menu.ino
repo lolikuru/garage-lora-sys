@@ -29,15 +29,15 @@ void log_menu() { //cursor string
     if ( sure == 1 ) send_dht = !send_dht;
   }
 
-  if ( current_selection == 2 ) {
-    deleteFile(LittleFS, config_filename);
-    current_selection == 0;
-  }
+    if ( current_selection == 2 ) {
+      deleteFile(LittleFS, config_filename);
+      current_selection = 0;
+    }
 
-  else if ( current_selection == 3 ) {
-    readFile(LittleFS, config_filename);
-    current_selection == 0;
-  }
+    else if ( current_selection == 3 ) {
+      readFile(LittleFS, config_filename);
+      current_selection = 0;
+    }
 
   else if ( current_selection == 4 ) {
     u8g2.userInterfaceMessage(
@@ -60,7 +60,7 @@ void log_menu() { //cursor string
       "LED MSG change",
       "now: ",
       onOff(led_msg),
-      " Change \n Cancel ");
+      "Change\nCancel");
     if (sure = 1) {
       led_msg = !led_msg;
       saveConfig();
@@ -140,6 +140,7 @@ void log_menu() { //cursor string
 }
 
 void power_menu() {
+    u8g2.clearBuffer();
   const char *power_list = "Back\n"
                            "Sleep\n"
                            "Power off";
@@ -167,6 +168,7 @@ void power_menu() {
 }
 
 void settings_menu() {
+    u8g2.clearBuffer();
   const char *settings_list = "CPU Frequency\n"
                               "Allways on disp\n"
                               "Sleep on time\n" //Просыпаться по UART

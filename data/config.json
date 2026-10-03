@@ -2,7 +2,7 @@
   "SSDPName": "GarageClient",
   "ssidAPName": "ESP32LogServer",
   "ssidAPPassword": "12345678",
-  "ssidName": "Saya5G",
+  "ssidName": "Saya",
   "ssidPassword": "markiz18",
   "loads": [
     {"name": "Load1", "pin": 0},

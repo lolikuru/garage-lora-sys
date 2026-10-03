@@ -148,6 +148,20 @@ void FS_Browser_init() {
     request->send(200, "text/plain", buffer);
   });
 
+  server.on("/cron", HTTP_GET, [](AsyncWebServerRequest *request) {
+        if (LittleFS.exists("/cron_generator.html")) {
+            File file = LittleFS.open("/cron_generator.html", "r");
+            if(file){
+                String content = file.readString();
+                request->send(200, "text/html", content);
+            } else {
+                request->send(500, "text/plain", "Failed to open cron_generator.html");
+            }
+        } else {
+            request->send(404, "text/plain", "cron_generator.html not found.");
+        }
+    });
+
   // Просмотр Wi-Fi конфигурации
   server.on("/wifi", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (LittleFS.exists("/config.html")) {
@@ -155,7 +169,6 @@ void FS_Browser_init() {
       if (file) {
         String content = file.readString();
         file.close();
-
         JsonDocument doc;
         if (LittleFS.exists("/config.json")) {
           File confFile = LittleFS.open("/config.json", "r");

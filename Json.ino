@@ -1,4 +1,6 @@
 bool saveConfig() {
+    // existing implementation remains
+
   JsonDocument docConfig;
 
   // Сетевые настройки
@@ -52,6 +54,40 @@ bool saveConfig() {
 }
 
 // Чтение данных из файла config.json
+bool updatePinout(byte index, bool state) {
+    File configFile = LittleFS.open(config_filename, "r");
+    if (!configFile) return false;
+    JsonDocument docConfig;
+    DeserializationError err = deserializeJson(docConfig, configFile);
+    configFile.close();
+    if (err) return false;
+    JsonArray loadsArray = docConfig["loads"].as<JsonArray>();
+    if (!loadsArray.isNull() && index < loadsArray.size()) {
+        JsonObject loadObj = loadsArray[index].as<JsonObject>();
+        loadObj["pin"] = state ? 1 : 0;
+    }
+    File outFile = LittleFS.open(config_filename, "w");
+    if (!outFile) return false;
+    size_t written = serializeJson(docConfig, outFile);
+    outFile.close();
+    return written > 0;
+    }
+
+// Write single configuration parameter
+void writeJsonParam(const char* key, const String& value) {
+    File in = LittleFS.open(config_filename, "r");
+    if (!in) return;
+    JsonDocument doc;
+    deserializeJson(doc, in);
+    in.close();
+    JsonObject obj = doc.to<JsonObject>();
+    obj[key] = value;
+    File out = LittleFS.open(config_filename, "w");
+    if (!out) return;
+    serializeJson(doc, out);
+    out.close();
+}
+
 bool loadConfig() {
   File configFile = LittleFS.open(config_filename, "r");
   if (!configFile) {
